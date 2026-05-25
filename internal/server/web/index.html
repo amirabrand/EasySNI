@@ -1,0 +1,924 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SNI / SPlus Tunnel Suite</title>
+<style>
+  :root{
+    --bg:#0d0f14; --panel:#13161e; --panel2:#1a1d28; --border:#252836;
+    --accent:#00e5ff; --accent2:#7c3aed; --success:#00c853; --warning:#ffab00;
+    --danger:#ff3d57; --text:#e8eaf6; --dim:#8892a4; --bright:#ffffff;
+    --mono:ui-monospace,"SF Mono","Cascadia Code",Consolas,"Liberation Mono",monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --fa:Tahoma,"Segoe UI","Iranian Sans",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);
+    font-size:14px;line-height:1.5;
+    background-image:
+      radial-gradient(1100px 500px at 12% -8%, rgba(0,229,255,.06), transparent 60%),
+      radial-gradient(900px 460px at 100% 0%, rgba(124,58,237,.07), transparent 55%);
+  }
+  html[dir=rtl] body{font-family:var(--fa)}
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.35;
+    background:repeating-linear-gradient(0deg,transparent 0 2px,rgba(255,255,255,.012) 2px 3px);
+  }
+  .app{position:relative;z-index:1;display:grid;grid-template-columns:236px 1fr;
+    grid-template-rows:56px 1fr 220px;height:100vh;
+    grid-template-areas:"head head" "rail main" "rail console";}
+  html[dir=rtl] .app{grid-template-columns:1fr 236px;grid-template-areas:"head head" "main rail" "console rail";}
+  header{grid-area:head;display:flex;align-items:center;gap:16px;padding:0 22px;
+    border-bottom:1px solid var(--border);background:rgba(19,22,30,.7);backdrop-filter:blur(6px);}
+  .logo{font-family:var(--mono);font-weight:600;letter-spacing:.5px;color:var(--bright);
+    display:flex;align-items:center;gap:10px;}
+  .logo .mark{width:11px;height:11px;border-radius:2px;background:var(--accent);
+    box-shadow:0 0 10px var(--accent),0 0 22px rgba(0,229,255,.5);}
+  .logo small{color:var(--dim);font-weight:400;letter-spacing:.18em;text-transform:uppercase;font-size:10px;}
+  html[dir=rtl] .logo{font-family:var(--fa)}
+  .head-status{margin-inline-start:auto;display:flex;gap:18px;align-items:center;font-family:var(--mono);font-size:11px;color:var(--dim);}
+  .head-status b{color:var(--text);font-weight:500}
+  .langbtn{font-family:var(--mono);font-size:11px;color:var(--accent);background:transparent;
+    border:1px solid rgba(0,229,255,.4);border-radius:7px;padding:5px 12px;cursor:pointer;letter-spacing:.05em}
+  .langbtn:hover{background:rgba(0,229,255,.1)}
+  .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--dim);margin-inline-end:6px;vertical-align:middle}
+  .dot.on{background:var(--success);box-shadow:0 0 8px var(--success)}
+  nav{grid-area:rail;border-inline-end:1px solid var(--border);background:rgba(16,18,26,.5);padding:14px 10px;overflow:auto}
+  .navbtn{display:flex;align-items:center;gap:11px;width:100%;text-align:start;
+    background:transparent;border:1px solid transparent;color:var(--dim);
+    padding:10px 12px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;
+    letter-spacing:.02em;transition:.13s;margin-bottom:3px;}
+  .navbtn:hover{color:var(--text);background:rgba(255,255,255,.025)}
+  .navbtn.active{color:var(--bright);background:linear-gradient(90deg,rgba(0,229,255,.13),rgba(0,229,255,.02));
+    border-color:rgba(0,229,255,.32);}
+  html[dir=rtl] .navbtn.active{background:linear-gradient(270deg,rgba(0,229,255,.13),rgba(0,229,255,.02));}
+  .navbtn .ic{width:16px;text-align:center;font-family:var(--mono);color:var(--accent);opacity:.85}
+  .navbtn.active .ic{opacity:1;text-shadow:0 0 8px var(--accent)}
+  .navbtn .tag{margin-inline-start:auto;font-size:9px;letter-spacing:.12em;color:var(--accent2);
+    border:1px solid rgba(124,58,237,.4);border-radius:4px;padding:1px 5px;text-transform:uppercase}
+  main{grid-area:main;overflow:auto;padding:26px 30px}
+  .panel{display:none;max-width:920px;animation:fade .25s ease}
+  .panel.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .panel h1{font-size:19px;font-weight:600;margin:0 0 4px;color:var(--bright);letter-spacing:.01em}
+  .panel .sub{color:var(--dim);margin:0 0 22px;font-size:13px}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:20px 22px;margin-bottom:18px}
+  .card h2{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);
+    margin:0 0 16px;font-family:var(--mono);font-weight:600}
+  html[dir=rtl] .card h2{font-family:var(--fa);letter-spacing:0}
+  .grid{display:grid;gap:14px 18px}
+  .g2{grid-template-columns:1fr 1fr}
+  .g3{grid-template-columns:1fr 1fr 1fr}
+  @media(max-width:760px){.g2,.g3{grid-template-columns:1fr}}
+  label{display:block}
+  label .lbl{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.13em;
+    text-transform:uppercase;color:var(--dim);margin-bottom:6px}
+  html[dir=rtl] label .lbl{font-family:var(--fa);letter-spacing:0;font-size:11px}
+  input,select,textarea{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);
+    border-radius:8px;padding:10px 12px;font-family:var(--mono);font-size:13px;outline:none;transition:.13s;
+    direction:ltr;text-align:left}
+  input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,229,255,.1)}
+  textarea{resize:vertical;min-height:96px;line-height:1.45}
+  select{appearance:none;cursor:pointer}
+  .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:18px}
+  .checkrow{display:flex;align-items:center;gap:9px;margin-top:16px;font-size:13px;color:var(--text)}
+  .checkrow input{width:auto;margin:0;cursor:pointer}
+  button.act{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;
+    border-radius:8px;padding:11px 20px;cursor:pointer;border:1px solid transparent;transition:.13s;font-weight:600}
+  html[dir=rtl] button.act{font-family:var(--fa);letter-spacing:0;text-transform:none}
+  .btn-go{background:linear-gradient(180deg,#00e5ff,#00b8d4);color:#04141a;box-shadow:0 0 18px rgba(0,229,255,.35)}
+  .btn-go:hover{filter:brightness(1.08)}
+  .btn-stop{background:transparent;color:var(--danger);border-color:rgba(255,61,87,.5)}
+  .btn-stop:hover{background:rgba(255,61,87,.12)}
+  .btn-alt{background:rgba(124,58,237,.16);color:#d8c8ff;border-color:rgba(124,58,237,.5)}
+  .btn-alt:hover{background:rgba(124,58,237,.28)}
+  .btn-ghost{background:transparent;color:var(--dim);border-color:var(--border)}
+  .btn-ghost:hover{color:var(--text);border-color:var(--dim)}
+  button:disabled{opacity:.4;cursor:not-allowed;filter:none!important}
+  .pill{font-family:var(--mono);font-size:11px;padding:5px 11px;border-radius:20px;border:1px solid var(--border);
+    color:var(--dim);display:inline-flex;align-items:center;gap:7px}
+  .pill.run{color:var(--success);border-color:rgba(0,200,83,.45);background:rgba(0,200,83,.08)}
+  .pill.off{color:var(--dim)}
+  .stat-row{display:flex;gap:26px;margin-top:14px;font-family:var(--mono);font-size:12px;color:var(--dim);flex-wrap:wrap}
+  .stat-row b{color:var(--accent);font-weight:600}
+  .result{margin-top:16px;font-family:var(--mono);font-size:12.5px;border-radius:8px;
+    border:1px solid var(--border);background:var(--bg);padding:14px 16px;white-space:pre-wrap;word-break:break-word;direction:ltr;text-align:left}
+  .kv{display:grid;grid-template-columns:140px 1fr;gap:4px 14px;font-family:var(--mono);font-size:12.5px}
+  .kv .k{color:var(--dim)}
+  .kv .v{color:var(--text);word-break:break-all}
+  .ok{color:var(--success)} .bad{color:var(--danger)} .warn{color:var(--warning)} .cy{color:var(--accent)}
+  table{width:100%;border-collapse:collapse;margin-top:14px;font-family:var(--mono);font-size:12px;direction:ltr}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border)}
+  th{color:var(--dim);font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-weight:600}
+  tbody tr:hover{background:rgba(255,255,255,.02)}
+  .scanmeta{font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:12px}
+  .hint{font-size:12px;color:var(--dim);line-height:1.7}
+  .hint code{font-family:var(--mono);background:var(--bg);border:1px solid var(--border);
+    border-radius:5px;padding:1px 6px;color:var(--accent);font-size:11.5px;direction:ltr;display:inline-block}
+  .steps{counter-reset:s;list-style:none;padding:0;margin:0}
+  .steps li{counter-increment:s;position:relative;padding:8px 0 8px 34px;border-bottom:1px solid var(--border);font-size:13px}
+  html[dir=rtl] .steps li{padding:8px 34px 8px 0}
+  .steps li:last-child{border-bottom:0}
+  .steps li::before{content:counter(s);position:absolute;inset-inline-start:0;top:8px;width:22px;height:22px;border-radius:6px;
+    background:rgba(0,229,255,.12);border:1px solid rgba(0,229,255,.4);color:var(--accent);
+    font-family:var(--mono);font-size:11px;display:flex;align-items:center;justify-content:center}
+  .warnbox{border:1px solid rgba(255,171,0,.4);background:rgba(255,171,0,.07);border-radius:8px;
+    padding:12px 14px;font-size:12.5px;color:#ffd479;margin-top:10px;line-height:1.6}
+  .infobox{border:1px solid rgba(0,229,255,.32);background:rgba(0,229,255,.06);border-radius:8px;
+    padding:12px 14px;font-size:12.5px;color:#a7eef9;margin-top:10px;line-height:1.6}
+  /* about */
+  .hero{position:relative;overflow:hidden;border-radius:14px;border:1px solid var(--border);
+    background:linear-gradient(135deg,rgba(0,229,255,.10),rgba(124,58,237,.12));padding:30px 28px;margin-bottom:18px}
+  .hero h1{font-size:24px;margin:0 0 6px}
+  .hero p{margin:0;color:var(--text);opacity:.85;font-size:13.5px}
+  .hero .ver{position:absolute;top:16px;inset-inline-end:18px;font-family:var(--mono);font-size:10px;
+    letter-spacing:.16em;color:var(--accent);border:1px solid rgba(0,229,255,.4);border-radius:6px;padding:3px 9px}
+  .credit{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:18px}
+  .credit .badge{display:flex;align-items:center;gap:11px;background:var(--bg);border:1px solid var(--border);
+    border-radius:10px;padding:10px 16px}
+  .credit .av{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--accent),var(--accent2));
+    display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:700;color:#04141a}
+  .credit .who{font-size:12px;color:var(--dim)}
+  .credit .who b{display:block;color:var(--bright);font-size:14px;letter-spacing:.02em}
+  .tg{display:inline-flex;align-items:center;gap:8px;background:linear-gradient(180deg,#29a9eb,#1c92d2);
+    color:#fff;text-decoration:none;border-radius:9px;padding:10px 16px;font-size:13px;font-weight:600}
+  .tg:hover{filter:brightness(1.08)}
+  .feat{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:4px}
+  @media(max-width:680px){.feat{grid-template-columns:1fr}}
+  .feat .f{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:13px 15px}
+  .feat .f .ti{font-size:13px;color:var(--bright);font-weight:600;margin-bottom:3px;display:flex;align-items:center;gap:8px}
+  .feat .f .ti .ic{color:var(--accent);font-family:var(--mono)}
+  .feat .f .de{font-size:12px;color:var(--dim);line-height:1.55}
+  .tech{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+  .tech span{font-family:var(--mono);font-size:11px;color:var(--accent);border:1px solid rgba(0,229,255,.3);
+    background:rgba(0,229,255,.05);border-radius:20px;padding:4px 12px}
+  /* console */
+  .console{grid-area:console;border-top:1px solid var(--border);background:#0a0c10;display:flex;flex-direction:column}
+  .console .bar{display:flex;align-items:center;gap:12px;padding:8px 18px;border-bottom:1px solid var(--border)}
+  .console .bar .t{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+  html[dir=rtl] .console .bar .t{font-family:var(--fa);letter-spacing:0}
+  .console .bar .conn{margin-inline-start:auto;font-family:var(--mono);font-size:10px;color:var(--dim)}
+  .console .bar button{background:transparent;border:1px solid var(--border);color:var(--dim);
+    font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+    border-radius:6px;padding:4px 10px;cursor:pointer}
+  .console .bar button:hover{color:var(--text);border-color:var(--dim)}
+  .log{flex:1;overflow:auto;padding:10px 18px;font-family:var(--mono);font-size:12px;line-height:1.65;direction:ltr;text-align:left}
+  .log .ln{white-space:pre-wrap;word-break:break-word}
+  .log .ts{color:#4a5266;margin-right:10px}
+  .lv-INFO{color:var(--text)} .lv-OK{color:var(--success)} .lv-WARN{color:var(--warning)}
+  .lv-ERROR{color:var(--danger)} .lv-ACCENT{color:var(--accent)} .lv-DIM{color:var(--dim)}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#232737;border-radius:6px;border:2px solid var(--bg)}
+  ::-webkit-scrollbar-track{background:transparent}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo"><span class="mark"></span> SNI&nbsp;/&nbsp;SPlus <small data-i18n="hdr_edition">Go edition</small></div>
+    <div class="head-status">
+      <span><span id="dotProxy" class="dot"></span><span data-i18n="hdr_proxy">Proxy</span> <b id="sProxy">off</b></span>
+      <span><span id="dotSplus" class="dot"></span><span data-i18n="hdr_splus">SPlus</span> <b id="sSplus">off</b></span>
+      <button class="langbtn" id="langBtn">فارسی</button>
+    </div>
+  </header>
+
+  <nav id="rail"></nav>
+
+  <main>
+    <!-- SNI TUNNEL (PROXY) -->
+    <section class="panel" data-panel="proxy">
+      <h1 data-i18n="proxy_h1">SNI Tunnel</h1>
+      <p class="sub" data-i18n="proxy_sub">Dual-mode local TCP proxy. Transparent terminates TLS upstream with a spoofed SNI; passthrough relays raw bytes for Xray/V2Ray that bring their own TLS.</p>
+      <div class="card">
+        <h2 data-i18n="proxy_cfg">Configuration</h2>
+        <div class="grid g3">
+          <label><span class="lbl" data-i18n="f_listen_host">Listen host</span><input id="p_lh" value="127.0.0.1"></label>
+          <label><span class="lbl" data-i18n="f_listen_port">Listen port</span><input id="p_lp" value="10808"></label>
+          <label><span class="lbl" data-i18n="f_mode">Mode</span>
+            <select id="p_mode"><option value="transparent" data-i18n="mode_t">transparent — terminate TLS</option><option value="passthrough" data-i18n="mode_p">passthrough — raw TCP</option></select>
+          </label>
+          <label><span class="lbl" data-i18n="f_connect_ip">Connect IP / host</span><input id="p_ci" placeholder="e.g. 104.16.0.1"></label>
+          <label><span class="lbl" data-i18n="f_connect_port">Connect port</span><input id="p_cp" value="443"></label>
+          <label><span class="lbl" data-i18n="f_fake_sni">Fake SNI (transparent)</span><input id="p_sni" value="www.google.com"></label>
+        </div>
+        <label class="checkrow"><input type="checkbox" id="p_lan"><span data-i18n="f_lan_share">LAN sharing — bind 0.0.0.0 so other devices on your network can use this proxy</span></label>
+        <div class="infobox" id="p_laninfo" style="display:none"></div>
+        <div class="row">
+          <button class="act btn-go" id="p_start" data-i18n="c_start_proxy">Start proxy</button>
+          <button class="act btn-stop" id="p_stop" disabled data-i18n="c_stop">Stop</button>
+          <button class="act btn-ghost" id="p_checkport" data-i18n="c_check_port">Check port</button>
+          <span class="pill off" id="p_pill"><span class="dot"></span><span data-i18n="c_stopped">stopped</span></span>
+        </div>
+        <div id="p_portout"></div>
+      </div>
+
+      <div class="card">
+        <h2 data-i18n="dpi_t">DPI bypass</h2>
+        <p class="hint" data-i18n="dpi_h">Fragment the real ClientHello (splits the SNI across TCP writes — the reliable userspace bypass) and optionally inject fake ClientHellos with a corrupted segment so a DPI desyncs. Fake injection needs Linux root or Windows+WinDivert; without it, fragmentation still applies.</p>
+        <label class="checkrow"><input type="checkbox" id="d_frag"><span data-i18n="dpi_enable_frag">Enable fragmentation (split the real ClientHello)</span></label>
+        <div class="grid g3" style="margin-top:14px">
+          <label><span class="lbl" data-i18n="dpi_sni_chunk">SNI bytes per write (0 = whole)</span><input id="d_chunk" value="3"></label>
+          <label><span class="lbl" data-i18n="dpi_frag_delay">Fragment delay (ms)</span><input id="d_fragdelay" value="500"></label>
+          <label><span class="lbl" data-i18n="dpi_mode">Bypass mode (fake injection)</span>
+            <select id="d_mode"><option value="none" data-i18n="dpi_mode_none">none</option><option value="wrong_checksum" data-i18n="dpi_mode_cks">wrong_checksum</option><option value="wrong_seq" data-i18n="dpi_mode_seq">wrong_seq</option></select>
+          </label>
+          <label><span class="lbl" data-i18n="dpi_utls">uTLS fingerprint</span>
+            <select id="d_utls"></select>
+          </label>
+          <label><span class="lbl" data-i18n="dpi_fake_repeat">Fake repeat</span><input id="d_repeat" value="1"></label>
+          <label><span class="lbl" data-i18n="dpi_fake_delay">Fake delay (ms)</span><input id="d_fakedelay" value="2"></label>
+        </div>
+        <label style="margin-top:14px;max-width:240px"><span class="lbl" data-i18n="dpi_ack_timeout">ACK timeout (ms)</span><input id="d_ack" value="2000"></label>
+        <div class="warnbox" data-i18n="dpi_warn">wrong_checksum / wrong_seq craft raw packets and require elevated privileges (Linux root, or WinDivert on Windows). When unavailable the proxy logs it and falls back to fragmentation only.</div>
+      </div>
+
+      <div class="card">
+        <h2 data-i18n="proxy_relay">Relay test</h2>
+        <p class="hint" data-i18n="proxy_relay_h">Connect to the target above, complete a TLS handshake with the fake SNI, then send a HEAD request and time each stage.</p>
+        <div class="row"><button class="act btn-alt" id="pr_go" data-i18n="c_run_relay">Run relay test</button></div>
+        <div id="pr_out"></div>
+      </div>
+    </section>
+
+    <!-- SPLUS TUNNEL -->
+    <section class="panel" data-panel="splus">
+      <h1>SPlus Tunnel <span class="tag" style="font-size:10px;color:var(--accent2);border:1px solid rgba(124,58,237,.4);border-radius:5px;padding:2px 7px;vertical-align:middle;font-family:var(--mono);letter-spacing:.12em" data-i18n="badge_new">NEW</span></h1>
+      <p class="sub" data-i18n="splus_sub">Tunnels TCP through a SoroushPlus voice-call LiveKit data channel (port of theermia/SPlusTunnel). The server runs on free internet; the client runs restricted and exposes a local SOCKS5 proxy. Both join the same call.</p>
+      <div class="card">
+        <h2 data-i18n="splus_tunnel">Tunnel</h2>
+        <div class="grid g2">
+          <label><span class="lbl" data-i18n="f_role">Role</span>
+            <select id="s_role"><option value="client" data-i18n="role_client">client — exposes local SOCKS5</option><option value="server" data-i18n="role_server">server — dials out to the internet</option></select>
+          </label>
+          <label><span class="lbl" data-i18n="f_lk_url">LiveKit URL</span><input id="s_url" value="wss://k.splus.ir:8446"></label>
+        </div>
+        <label style="margin-top:14px"><span class="lbl" data-i18n="f_token">Access token (from the call)</span>
+          <textarea id="s_token" placeholder="paste the LiveKit access_token..."></textarea>
+        </label>
+        <div class="grid g2" id="s_clientfields" style="margin-top:14px">
+          <label><span class="lbl" data-i18n="f_socks_host">SOCKS5 host</span><input id="s_sh" value="0.0.0.0"></label>
+          <label><span class="lbl" data-i18n="f_socks_port">SOCKS5 port</span><input id="s_sp" value="1080"></label>
+        </div>
+        <div class="row">
+          <button class="act btn-alt" id="s_start" data-i18n="c_start_tunnel">Start tunnel</button>
+          <button class="act btn-stop" id="s_stop" disabled data-i18n="c_stop">Stop</button>
+          <span class="pill off" id="s_pill"><span class="dot"></span><span data-i18n="c_stopped">stopped</span></span>
+        </div>
+        <div class="stat-row"><span>RX <b id="s_rx">0 B</b></span><span>TX <b id="s_tx">0 B</b></span><span id="s_roleview"></span></div>
+      </div>
+      <div class="card">
+        <h2 data-i18n="splus_token_t">How to get the token</h2>
+        <ol class="steps">
+          <li data-i18n="splus_st1">Start a voice call inside SoroushPlus Messenger (web client) between the two devices.</li>
+          <li data-i18n="splus_st2">Open DevTools (F12) → Network → filter WS, find the connection to k.splus.ir:8446.</li>
+          <li data-i18n="splus_st3">Copy the access_token query parameter from that WebSocket URL — that is the token.</li>
+          <li data-i18n="splus_st4">Start the server side first, then the client. Each side needs its own token.</li>
+        </ol>
+        <div class="warnbox" id="s_lkwarn" style="display:none"></div>
+      </div>
+      <div class="card">
+        <h2 data-i18n="splus_socks_t">Using the SOCKS5 proxy (client)</h2>
+        <p class="hint" data-i18n="splus_socks_h">Point apps at socks5h://&lt;host&gt;:&lt;port&gt; and route DNS through the proxy. Quick test:</p>
+        <p class="hint"><code>curl --socks5-hostname 127.0.0.1:1080 https://ifconfig.me</code></p>
+      </div>
+    </section>
+
+    <!-- XRAY TEST -->
+    <section class="panel" data-panel="xray">
+      <h1 data-i18n="xray_h1">Xray Connection Test</h1>
+      <p class="sub" data-i18n="xray_sub">Paste a vless:// or vmess:// link and test a real HTTPS request through it — routed via the SNI-spoofing proxy running on this system. Requires an xray or v2ray binary in PATH.</p>
+      <div class="card">
+        <h2 data-i18n="xray_cfg">Test setup</h2>
+        <label><span class="lbl" data-i18n="f_uri">Share link (vless / vmess)</span>
+          <textarea id="x_uri" style="min-height:80px" placeholder="vless://uuid@host:443?security=tls&sni=...&type=ws&path=/"></textarea>
+        </label>
+        <div class="grid g3" style="margin-top:14px">
+          <label><span class="lbl" data-i18n="f_proxy_host">Local proxy host</span><input id="x_ph" value="127.0.0.1"></label>
+          <label><span class="lbl" data-i18n="f_proxy_port">Local proxy port</span><input id="x_pp" value="10808"></label>
+          <label><span class="lbl" data-i18n="f_socks_in">Xray SOCKS port</span><input id="x_sp" value="10809"></label>
+        </div>
+        <div class="grid g2" style="margin-top:14px">
+          <label><span class="lbl" data-i18n="f_test_url">Test URL</span><input id="x_url" value="https://www.google.com/generate_204"></label>
+          <label><span class="lbl" data-i18n="f_timeout">Timeout (s)</span><input id="x_to" value="12"></label>
+        </div>
+        <div class="infobox" data-i18n="xray_note">Tip: start the SNI Tunnel proxy first (same host/port as above). Xray will route its traffic through it, so the test reflects your spoofed-SNI path end to end.</div>
+        <div class="row"><button class="act btn-go" id="x_go" data-i18n="c_run_test">Run test</button><span class="scanmeta" id="x_meta"></span></div>
+        <div id="x_out"></div>
+      </div>
+    </section>
+
+    <!-- SNI SCAN -->
+    <section class="panel" data-panel="sniscan">
+      <h1 data-i18n="sniscan_h1">SNI Scan</h1>
+      <p class="sub" data-i18n="sniscan_sub">Probe a single hostname's TLS reachability, or run a full connect → handshake → relay timing test against a specific edge IP.</p>
+      <div class="card">
+        <h2 data-i18n="sniscan_single">Single SNI check</h2>
+        <div class="grid g3">
+          <label><span class="lbl" data-i18n="f_host">Host</span><input id="sn_host" placeholder="www.cloudflare.com"></label>
+          <label><span class="lbl" data-i18n="f_port">Port</span><input id="sn_port" value="443"></label>
+          <label><span class="lbl" data-i18n="f_timeout">Timeout (s)</span><input id="sn_to" value="5"></label>
+        </div>
+        <div class="row"><button class="act btn-go" id="sn_go" data-i18n="c_test">Test</button></div>
+        <div id="sn_out"></div>
+      </div>
+      <div class="card">
+        <h2 data-i18n="sniscan_relay">Relay test (connect → SNI → HEAD)</h2>
+        <div class="grid g3">
+          <label><span class="lbl" data-i18n="f_connect_ip">Connect IP</span><input id="rl_ip" placeholder="104.16.0.1"></label>
+          <label><span class="lbl" data-i18n="f_connect_port">Connect port</span><input id="rl_port" value="443"></label>
+          <label><span class="lbl" data-i18n="f_fake_sni_s">Fake SNI</span><input id="rl_sni" value="www.google.com"></label>
+        </div>
+        <div class="row"><button class="act btn-alt" id="rl_go" data-i18n="c_run_relay">Run relay test</button></div>
+        <div id="rl_out"></div>
+      </div>
+    </section>
+
+    <!-- MASS SNI SCAN -->
+    <section class="panel" data-panel="mass">
+      <h1 data-i18n="mass_h1">Mass SNI Scan</h1>
+      <p class="sub" data-i18n="mass_sub">Connect to one edge IP and try many SNI hostnames against it — find which front domains (including captcha endpoints) work through a given relay.</p>
+      <div class="card">
+        <h2 data-i18n="mass_target">Target</h2>
+        <div class="grid g3">
+          <label><span class="lbl" data-i18n="f_connect_ip">Connect IP</span><input id="ms_ip" placeholder="104.16.0.1"></label>
+          <label><span class="lbl" data-i18n="f_connect_port">Connect port</span><input id="ms_port" value="443"></label>
+          <label><span class="lbl" data-i18n="f_timeout">Timeout (s)</span><input id="ms_to" value="5"></label>
+        </div>
+        <label style="margin-top:14px"><span class="lbl" data-i18n="f_sni_list">SNI hostnames (one per line)</span>
+          <textarea id="ms_snis" style="min-height:150px"></textarea>
+        </label>
+        <div class="row">
+          <button class="act btn-go" id="ms_go" data-i18n="c_scan">Scan</button>
+          <button class="act btn-ghost" id="ms_def" data-i18n="c_load_captcha">Load captcha list</button>
+          <span class="scanmeta" id="ms_meta"></span>
+        </div>
+        <div id="ms_out"></div>
+      </div>
+    </section>
+
+    <!-- IP SCANNER -->
+    <section class="panel" data-panel="cf">
+      <h1 data-i18n="cf_h1">IP Scanner</h1>
+      <p class="sub" data-i18n="cf_sub">Sweep Cloudflare (or custom) IP ranges for reachable TLS endpoints. CIDRs expand up to 256 hosts each; use the limit to cap total probes.</p>
+      <div class="card">
+        <h2 data-i18n="cf_ranges_t">Ranges &amp; parameters</h2>
+        <label><span class="lbl" data-i18n="f_ranges">Ranges — CIDR or IP, one per line</span>
+          <textarea id="cf_ranges" style="min-height:140px"></textarea>
+        </label>
+        <div class="grid g3" style="margin-top:14px">
+          <label><span class="lbl" data-i18n="f_port">Port</span><input id="cf_port" value="443"></label>
+          <label><span class="lbl" data-i18n="f_sni">SNI</span><input id="cf_sni" value="cloudflare.com"></label>
+          <label><span class="lbl" data-i18n="f_limit">Limit (max IPs)</span><input id="cf_limit" value="100"></label>
+        </div>
+        <div class="row">
+          <button class="act btn-go" id="cf_go" data-i18n="c_scan">Scan</button>
+          <button class="act btn-ghost" id="cf_def" data-i18n="c_load_defaults">Load defaults</button>
+          <span class="scanmeta" id="cf_meta"></span>
+        </div>
+        <div id="cf_out"></div>
+      </div>
+    </section>
+
+    <!-- URI PARSER -->
+    <section class="panel" data-panel="uri">
+      <h1 data-i18n="uri_h1">URI Parser</h1>
+      <p class="sub" data-i18n="uri_sub">Decode vless:// and vmess:// share links into their host, port, UUID, SNI, transport and TLS fields — then send them straight to the SNI Tunnel.</p>
+      <div class="card">
+        <h2 data-i18n="uri_link">Share link</h2>
+        <label><textarea id="u_uri" placeholder="vless://uuid@host:443?security=tls&sni=...&type=ws&path=/  -or-  vmess://base64..."></textarea></label>
+        <div class="row">
+          <button class="act btn-go" id="u_go" data-i18n="c_parse">Parse</button>
+          <button class="act btn-alt" id="u_send" disabled data-i18n="c_send_tunnel">Send to SNI Tunnel</button>
+        </div>
+        <div id="u_out"></div>
+      </div>
+    </section>
+
+    <!-- WINDIVERT -->
+    <section class="panel" data-panel="windivert">
+      <h1 data-i18n="wd_h1">WinDivert Driver</h1>
+      <p class="sub" data-i18n="wd_sub">Install, start, or remove the WinDivert kernel driver used for system-wide packet interception. Windows only, and requires Administrator rights.</p>
+      <div class="card">
+        <h2 data-i18n="wd_status_t">Status</h2>
+        <div id="wd_status" class="result" style="margin-top:0" data-i18n="wd_checking">Checking…</div>
+        <label style="margin-top:16px"><span class="lbl" data-i18n="f_wd_path">WinDivert folder (optional — where WinDivert64.sys lives)</span><input id="wd_path" placeholder="C:\\Path\\to\\WinDivert"></label>
+        <div class="row">
+          <button class="act btn-go" id="wd_install" data-i18n="c_install_wd">Install &amp; start</button>
+          <button class="act btn-stop" id="wd_uninstall" data-i18n="c_uninstall_wd">Stop &amp; remove</button>
+          <button class="act btn-ghost" id="wd_refresh" data-i18n="c_refresh">Refresh</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2 data-i18n="wd_notes_t">Notes</h2>
+        <p class="hint" data-i18n="wd_n1">Place WinDivert64.sys (and WinDivert.dll / .sys for your architecture) next to this app, or point to its folder above. The driver must match your Windows build.</p>
+        <div class="warnbox" data-i18n="wd_n2">Run the app as Administrator before installing — kernel service creation requires elevation. On non-Windows systems this tab is informational only.</div>
+      </div>
+    </section>
+
+    <!-- ABOUT -->
+    <section class="panel" data-panel="about">
+      <h1 data-i18n="about_h1">About</h1>
+      <div class="hero">
+        <span class="ver">v3.3 · GO</span>
+        <h1 data-i18n="about_app">SNI / SPlus Tunnel Suite</h1>
+        <p data-i18n="about_tagline">An all-in-one DPI-bypass &amp; SNI-spoofing toolkit — proxy, scanners, Xray tester, SPlus LiveKit tunnel, and WinDivert management, in one fast offline Go app.</p>
+        <div class="credit">
+          <div class="badge">
+            <div class="av">MD</div>
+            <div class="who"><span data-i18n="about_madeby">Made by</span><b>MacanDev</b></div>
+          </div>
+          <a class="tg" href="https://t.me/EzAccess1" target="_blank" rel="noopener">
+            <span style="font-family:var(--mono);font-weight:700">✈</span> @EzAccess1
+          </a>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 data-i18n="about_what_t">What it does</h2>
+        <div class="feat">
+          <div class="f"><div class="ti"><span class="ic">≋</span><span data-i18n="about_f1_t">SNI Tunnel</span></div><div class="de" data-i18n="about_f1_d">Dual-mode local proxy: transparent (terminates TLS with a fake SNI) or passthrough (raw TCP for Xray). With relay test, port check and LAN sharing.</div></div>
+          <div class="f"><div class="ti"><span class="ic">⇄</span><span data-i18n="about_f2_t">SPlus Tunnel</span></div><div class="de" data-i18n="about_f2_d">SOCKS5 over a SoroushPlus voice call's LiveKit data channel — a port of theermia/SPlusTunnel.</div></div>
+          <div class="f"><div class="ti"><span class="ic">✓</span><span data-i18n="about_f3_t">Xray Tester</span></div><div class="de" data-i18n="about_f3_d">Paste a vless/vmess link and measure a real HTTPS request through your spoofed-SNI proxy via a local xray instance.</div></div>
+          <div class="f"><div class="ti"><span class="ic">◎</span><span data-i18n="about_f4_t">Scanners</span></div><div class="de" data-i18n="about_f4_d">Single SNI check, relay timing, mass SNI scan (with a built-in captcha-domain list), and a Cloudflare IP sweeper.</div></div>
+          <div class="f"><div class="ti"><span class="ic">⌁</span><span data-i18n="about_f5_t">URI Parser</span></div><div class="de" data-i18n="about_f5_d">Decode vless/vmess share links and push the result straight into the SNI Tunnel.</div></div>
+          <div class="f"><div class="ti"><span class="ic">⊞</span><span data-i18n="about_f6_t">WinDivert</span></div><div class="de" data-i18n="about_f6_d">One-click install / start / remove of the WinDivert kernel driver service on Windows.</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 data-i18n="about_tech_t">Under the hood</h2>
+        <p class="hint" data-i18n="about_tech_d">A single self-contained Go binary serves this control panel on loopback. No external assets are loaded — everything runs fully offline, which matters for a circumvention tool. The live console below streams status from every action over Server-Sent Events.</p>
+        <div class="tech"><span>Go 1.22</span><span>net/http</span><span>SSE</span><span>LiveKit</span><span>SOCKS5</span><span>TLS</span><span>WinDivert</span><span>offline</span></div>
+      </div>
+
+      <div class="card">
+        <h2 data-i18n="about_scope_t">Scope &amp; safety</h2>
+        <p class="hint" data-i18n="about_scope_d">The proxy intentionally skips upstream certificate verification — that is inherent to SNI spoofing, where the presented certificate won't match the fake SNI. Use this tool only where it is lawful for you to do so.</p>
+        <div class="warnbox" data-i18n="about_lk_note">The SPlus tunnel needs a LiveKit-enabled build (go build -tags livekit). Without it, starting a tunnel returns build instructions.</div>
+      </div>
+
+      <div class="card" style="text-align:center">
+        <p class="hint" style="margin:0" data-i18n="about_follow">Follow the channel for updates, configs and support:</p>
+        <a class="tg" style="margin-top:12px" href="https://t.me/EzAccess1" target="_blank" rel="noopener"><span style="font-family:var(--mono);font-weight:700">✈</span> t.me/EzAccess1</a>
+      </div>
+    </section>
+  </main>
+
+  <!-- CONSOLE -->
+  <div class="console">
+    <div class="bar">
+      <span class="t" data-i18n="c_console">Console</span>
+      <span class="conn" id="conn">&#9679; <span data-i18n="c_connecting">connecting...</span></span>
+      <button id="clearLog" data-i18n="c_clear">clear</button>
+    </div>
+    <div class="log" id="log"></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+
+/* ===================== i18n ===================== */
+const I18N = {
+  en:{
+    hdr_edition:"Go edition", hdr_proxy:"Proxy", hdr_splus:"SPlus", badge_new:"NEW",
+    nav_proxy:"SNI Tunnel", nav_splus:"SPlus Tunnel", nav_xray:"Xray Test", nav_sniscan:"SNI Scan",
+    nav_mass:"Mass SNI Scan", nav_cf:"IP Scanner", nav_uri:"URI Parser", nav_windivert:"WinDivert", nav_about:"About",
+    c_start_proxy:"Start proxy", c_stop:"Stop", c_check_port:"Check port", c_run_relay:"Run relay test",
+    c_start_tunnel:"Start tunnel", c_run_test:"Run test", c_test:"Test", c_scan:"Scan", c_parse:"Parse",
+    c_send_tunnel:"Send to SNI Tunnel", c_load_captcha:"Load captcha list", c_load_defaults:"Load defaults",
+    c_install_wd:"Install & start", c_uninstall_wd:"Stop & remove", c_refresh:"Refresh",
+    c_running:"running", c_stopped:"stopped", c_console:"Console", c_clear:"clear", c_live:"live",
+    c_connecting:"connecting...", c_reconnecting:"reconnecting...",
+    c_testing:"testing...", c_running_e:"running...", c_scanning:"scanning...",
+    st_reachable:"REACHABLE", st_failed:"FAILED", st_ok:"OK", st_open:"OPEN", st_closed:"CLOSED",
+    f_listen_host:"Listen host", f_listen_port:"Listen port", f_mode:"Mode",
+    mode_t:"transparent — terminate TLS", mode_p:"passthrough — raw TCP",
+    f_connect_ip:"Connect IP / host", f_connect_port:"Connect port", f_fake_sni:"Fake SNI (transparent)",
+    f_fake_sni_s:"Fake SNI", f_lan_share:"LAN sharing — bind 0.0.0.0 so other devices on your network can use this proxy",
+    proxy_h1:"SNI Tunnel", proxy_sub:"Dual-mode local TCP proxy. Transparent terminates TLS upstream with a spoofed SNI; passthrough relays raw bytes for Xray/V2Ray that bring their own TLS.",
+    proxy_cfg:"Configuration", proxy_relay:"Relay test",
+    proxy_relay_h:"Connect to the target above, complete a TLS handshake with the fake SNI, then send a HEAD request and time each stage.",
+    dpi_t:"DPI bypass",
+    dpi_h:"Fragment the real ClientHello (splits the SNI across TCP writes — the reliable userspace bypass) and optionally inject fake ClientHellos with a corrupted segment so a DPI desyncs. Fake injection needs Linux root or Windows+WinDivert; without it, fragmentation still applies.",
+    dpi_enable_frag:"Enable fragmentation (split the real ClientHello)",
+    dpi_sni_chunk:"SNI bytes per write (0 = whole)", dpi_frag_delay:"Fragment delay (ms)",
+    dpi_mode:"Bypass mode (fake injection)", dpi_mode_none:"none", dpi_mode_cks:"wrong_checksum", dpi_mode_seq:"wrong_seq",
+    dpi_utls:"uTLS fingerprint", dpi_fake_repeat:"Fake repeat", dpi_fake_delay:"Fake delay (ms)", dpi_ack_timeout:"ACK timeout (ms)",
+    dpi_warn:"wrong_checksum / wrong_seq craft raw packets and need elevated privileges: Linux root, or — on Windows — running as Administrator with WinDivert.dll next to the app (install the driver from the WinDivert tab). When unavailable the proxy logs it and falls back to fragmentation only.",
+    splus_sub:"Tunnels TCP through a SoroushPlus voice-call LiveKit data channel (port of theermia/SPlusTunnel). The server runs on free internet; the client runs restricted and exposes a local SOCKS5 proxy.",
+    splus_tunnel:"Tunnel", f_role:"Role", role_client:"client — exposes local SOCKS5", role_server:"server — dials out to the internet",
+    f_lk_url:"LiveKit URL", f_token:"Access token (from the call)", f_socks_host:"SOCKS5 host", f_socks_port:"SOCKS5 port",
+    splus_token_t:"How to get the token",
+    splus_st1:"Start a voice call inside SoroushPlus Messenger (web client) between the two devices.",
+    splus_st2:"Open DevTools (F12) → Network → filter WS, find the connection to k.splus.ir:8446.",
+    splus_st3:"Copy the access_token query parameter from that WebSocket URL — that is the token.",
+    splus_st4:"Start the server side first, then the client. Each side needs its own token.",
+    splus_socks_t:"Using the SOCKS5 proxy (client)",
+    splus_socks_h:"Point apps at socks5h://<host>:<port> and route DNS through the proxy. Quick test:",
+    xray_h1:"Xray Connection Test",
+    xray_sub:"Paste a vless:// or vmess:// link and test a real HTTPS request through it — routed via the SNI-spoofing proxy running on this system. Requires an xray or v2ray binary in PATH.",
+    xray_cfg:"Test setup", f_uri:"Share link (vless / vmess)", f_proxy_host:"Local proxy host", f_proxy_port:"Local proxy port",
+    f_socks_in:"Xray SOCKS port", f_test_url:"Test URL", f_timeout:"Timeout (s)",
+    xray_note:"Tip: start the SNI Tunnel proxy first (same host/port as above). Xray routes its traffic through it, so the test reflects your spoofed-SNI path end to end.",
+    sniscan_h1:"SNI Scan", sniscan_sub:"Probe a single hostname's TLS reachability, or run a full connect → handshake → relay timing test against a specific edge IP.",
+    sniscan_single:"Single SNI check", f_host:"Host", f_port:"Port", sniscan_relay:"Relay test (connect → SNI → HEAD)",
+    mass_h1:"Mass SNI Scan", mass_sub:"Connect to one edge IP and try many SNI hostnames against it — find which front domains (including captcha endpoints) work through a given relay.",
+    mass_target:"Target", f_sni_list:"SNI hostnames (one per line)",
+    cf_h1:"IP Scanner", cf_sub:"Sweep Cloudflare (or custom) IP ranges for reachable TLS endpoints. CIDRs expand up to 256 hosts each; use the limit to cap total probes.",
+    cf_ranges_t:"Ranges & parameters", f_ranges:"Ranges — CIDR or IP, one per line", f_sni:"SNI", f_limit:"Limit (max IPs)",
+    uri_h1:"URI Parser", uri_sub:"Decode vless:// and vmess:// share links into their host, port, UUID, SNI, transport and TLS fields — then send them straight to the SNI Tunnel.",
+    uri_link:"Share link",
+    wd_h1:"WinDivert Driver", wd_sub:"Install, start, or remove the WinDivert kernel driver used for system-wide packet interception. Windows only, and requires Administrator rights.",
+    wd_status_t:"Status", wd_checking:"Checking…", f_wd_path:"WinDivert folder (optional — where WinDivert64.sys lives)",
+    wd_notes_t:"Notes",
+    wd_n1:"Place WinDivert64.sys (and the matching .dll/.sys for your architecture) next to this app, or point to its folder above. The driver must match your Windows build.",
+    wd_n2:"Run the app as Administrator before installing — kernel service creation requires elevation. On non-Windows systems this tab is informational only.",
+    about_h1:"About", about_app:"SNI / SPlus Tunnel Suite",
+    about_tagline:"An all-in-one DPI-bypass & SNI-spoofing toolkit — proxy, scanners, Xray tester, SPlus LiveKit tunnel, and WinDivert management, in one fast offline Go app.",
+    about_madeby:"Made by", about_what_t:"What it does",
+    about_f1_t:"SNI Tunnel", about_f1_d:"Dual-mode local proxy: transparent (terminates TLS with a fake SNI) or passthrough (raw TCP for Xray). With relay test, port check and LAN sharing.",
+    about_f2_t:"SPlus Tunnel", about_f2_d:"SOCKS5 over a SoroushPlus voice call's LiveKit data channel — a port of theermia/SPlusTunnel.",
+    about_f3_t:"Xray Tester", about_f3_d:"Paste a vless/vmess link and measure a real HTTPS request through your spoofed-SNI proxy via a local xray instance.",
+    about_f4_t:"Scanners", about_f4_d:"Single SNI check, relay timing, mass SNI scan (with a built-in captcha-domain list), and a Cloudflare IP sweeper.",
+    about_f5_t:"URI Parser", about_f5_d:"Decode vless/vmess share links and push the result straight into the SNI Tunnel.",
+    about_f6_t:"WinDivert", about_f6_d:"One-click install / start / remove of the WinDivert kernel driver service on Windows.",
+    about_tech_t:"Under the hood",
+    about_tech_d:"A single self-contained Go binary serves this control panel on loopback. No external assets are loaded — everything runs fully offline, which matters for a circumvention tool. The live console below streams status from every action over Server-Sent Events.",
+    about_scope_t:"Scope & safety",
+    about_scope_d:"The proxy intentionally skips upstream certificate verification — that is inherent to SNI spoofing, where the presented certificate won't match the fake SNI. Use this tool only where it is lawful for you to do so.",
+    about_lk_note:"The SPlus tunnel needs a LiveKit-enabled build (go build -tags livekit). Without it, starting a tunnel returns build instructions.",
+    about_follow:"Follow the channel for updates, configs and support:",
+    r_host:"host", r_status:"status", r_latency:"latency", r_error:"error", r_tcp:"tcp connect", r_tls:"tls handshake",
+    r_relay:"relay", r_protocol:"protocol", r_port:"port", r_uuid:"uuid", r_sni:"sni", r_transport:"transport",
+    r_path:"path", r_tls_f:"tls", r_enabled:"enabled", r_none:"none", r_http:"HTTP status", r_bytes:"bytes",
+    r_xray:"xray path", r_server:"server", r_resp:"response", th_sni:"SNI", th_result:"Result", th_http:"HTTP",
+    th_ip:"IP", th_tlscol:"TLS", th_lat:"Latency", m_reachable:"reachable", m_working:"working",
+    wd_supported:"supported", wd_admin:"admin", wd_running:"running", wd_installed:"installed", yes:"yes", no:"no",
+  },
+  fa:{
+    hdr_edition:"نسخهٔ Go", hdr_proxy:"پروکسی", hdr_splus:"SPlus", badge_new:"جدید",
+    nav_proxy:"تونل SNI", nav_splus:"تونل SPlus", nav_xray:"تست Xray", nav_sniscan:"اسکن SNI",
+    nav_mass:"اسکن گروهی SNI", nav_cf:"اسکنر IP", nav_uri:"تجزیه‌گر URI", nav_windivert:"WinDivert", nav_about:"درباره",
+    c_start_proxy:"شروع پروکسی", c_stop:"توقف", c_check_port:"بررسی پورت", c_run_relay:"اجرای تست رله",
+    c_start_tunnel:"شروع تونل", c_run_test:"اجرای تست", c_test:"تست", c_scan:"اسکن", c_parse:"تجزیه",
+    c_send_tunnel:"ارسال به تونل SNI", c_load_captcha:"بارگذاری لیست کپچا", c_load_defaults:"بارگذاری پیش‌فرض",
+    c_install_wd:"نصب و راه‌اندازی", c_uninstall_wd:"توقف و حذف", c_refresh:"بازخوانی",
+    c_running:"در حال اجرا", c_stopped:"متوقف", c_console:"کنسول", c_clear:"پاک‌سازی", c_live:"زنده",
+    c_connecting:"در حال اتصال...", c_reconnecting:"در حال اتصال مجدد...",
+    c_testing:"در حال تست...", c_running_e:"در حال اجرا...", c_scanning:"در حال اسکن...",
+    st_reachable:"در دسترس", st_failed:"ناموفق", st_ok:"موفق", st_open:"باز", st_closed:"بسته",
+    f_listen_host:"هاست شنونده", f_listen_port:"پورت شنونده", f_mode:"حالت",
+    mode_t:"شفاف — خاتمهٔ TLS", mode_p:"عبوری — TCP خام",
+    f_connect_ip:"IP / هاست مقصد", f_connect_port:"پورت مقصد", f_fake_sni:"SNI جعلی (شفاف)",
+    f_fake_sni_s:"SNI جعلی", f_lan_share:"اشتراک شبکه — اتصال به 0.0.0.0 تا دستگاه‌های دیگر شبکه از این پروکسی استفاده کنند",
+    proxy_h1:"تونل SNI", proxy_sub:"پروکسی محلی TCP دو حالته. حالت شفاف TLS را با SNI جعلی خاتمه می‌دهد؛ حالت عبوری بایت‌های خام را برای Xray/V2Ray که TLS خود را دارند منتقل می‌کند.",
+    proxy_cfg:"پیکربندی", proxy_relay:"تست رله",
+    proxy_relay_h:"به مقصد بالا متصل می‌شود، دست‌دهی TLS را با SNI جعلی کامل می‌کند، سپس درخواست HEAD می‌فرستد و زمان هر مرحله را اندازه می‌گیرد.",
+    dpi_t:"عبور از DPI",
+    dpi_h:"ClientHello واقعی را تکه‌تکه می‌کند (SNI را میان چند نوشتن TCP تقسیم می‌کند — روش مطمئن کاربری) و به‌صورت اختیاری ClientHelloهای جعلی با بستهٔ خراب تزریق می‌کند تا DPI از همگامی خارج شود. تزریق جعلی به root لینوکس یا WinDivert ویندوز نیاز دارد؛ بدون آن تکه‌تکه‌سازی همچنان اعمال می‌شود.",
+    dpi_enable_frag:"فعال‌سازی تکه‌تکه‌سازی (تقسیم ClientHello واقعی)",
+    dpi_sni_chunk:"بایت SNI در هر نوشتن (۰ = کامل)", dpi_frag_delay:"تأخیر تکه (میلی‌ثانیه)",
+    dpi_mode:"حالت عبور (تزریق جعلی)", dpi_mode_none:"هیچ", dpi_mode_cks:"checksum اشتباه", dpi_mode_seq:"seq اشتباه",
+    dpi_utls:"اثر انگشت uTLS", dpi_fake_repeat:"تکرار جعلی", dpi_fake_delay:"تأخیر جعلی (میلی‌ثانیه)", dpi_ack_timeout:"مهلت ACK (میلی‌ثانیه)",
+    dpi_warn:"حالت‌های checksum اشتباه / seq اشتباه بسته‌های خام می‌سازند و به دسترسی بالا نیاز دارند: root در لینوکس، یا در ویندوز اجرا به‌عنوان Administrator همراه با قرار دادن WinDivert.dll کنار برنامه (درایور را از تب WinDivert نصب کنید). در نبودِ آن، پروکسی این موضوع را ثبت کرده و تنها به تکه‌تکه‌سازی بازمی‌گردد.",
+    splus_sub:"TCP را از طریق کانال دادهٔ LiveKit یک تماس صوتی سروش‌پلاس تونل می‌کند (پورت theermia/SPlusTunnel). سرور روی اینترنت آزاد و کلاینت در محیط محدود اجرا شده و یک پروکسی SOCKS5 محلی ارائه می‌دهد.",
+    splus_tunnel:"تونل", f_role:"نقش", role_client:"کلاینت — ارائهٔ SOCKS5 محلی", role_server:"سرور — اتصال به اینترنت",
+    f_lk_url:"آدرس LiveKit", f_token:"توکن دسترسی (از تماس)", f_socks_host:"هاست SOCKS5", f_socks_port:"پورت SOCKS5",
+    splus_token_t:"چگونه توکن را بگیریم",
+    splus_st1:"یک تماس صوتی در پیام‌رسان سروش‌پلاس (نسخهٔ وب) میان دو دستگاه برقرار کنید.",
+    splus_st2:"ابزار توسعه‌دهنده (F12) → Network → فیلتر WS، اتصال به k.splus.ir:8446 را بیابید.",
+    splus_st3:"پارامتر access_token را از آدرس آن WebSocket کپی کنید — همان توکن است.",
+    splus_st4:"ابتدا سمت سرور و سپس کلاینت را شروع کنید. هر طرف به توکن خودش نیاز دارد.",
+    splus_socks_t:"استفاده از پروکسی SOCKS5 (کلاینت)",
+    splus_socks_h:"برنامه‌ها را به socks5h://<host>:<port> اشاره دهید و DNS را از پروکسی عبور دهید. تست سریع:",
+    xray_h1:"تست اتصال Xray",
+    xray_sub:"یک لینک vless:// یا vmess:// را وارد کنید و یک درخواست واقعی HTTPS را از طریق آن — با عبور از پروکسی جعل‌کنندهٔ SNI روی این سیستم — تست کنید. به فایل اجرایی xray یا v2ray در PATH نیاز دارد.",
+    xray_cfg:"تنظیمات تست", f_uri:"لینک اشتراک (vless / vmess)", f_proxy_host:"هاست پروکسی محلی", f_proxy_port:"پورت پروکسی محلی",
+    f_socks_in:"پورت SOCKS اکس‌ری", f_test_url:"آدرس تست", f_timeout:"مهلت (ثانیه)",
+    xray_note:"نکته: ابتدا پروکسی تونل SNI را با همان هاست/پورت بالا اجرا کنید. اکس‌ری ترافیک را از آن عبور می‌دهد تا تست، مسیر جعل SNI شما را به‌طور کامل بازتاب دهد.",
+    sniscan_h1:"اسکن SNI", sniscan_sub:"دسترس‌پذیری TLS یک هاست را بررسی کنید، یا یک تست کامل اتصال → دست‌دهی → رله را روی یک IP خاص اجرا کنید.",
+    sniscan_single:"بررسی تک SNI", f_host:"هاست", f_port:"پورت", sniscan_relay:"تست رله (اتصال → SNI → HEAD)",
+    mass_h1:"اسکن گروهی SNI", mass_sub:"به یک IP متصل شوید و چندین هاست SNI را روی آن امتحان کنید — ببینید کدام دامنه‌های فرانت (از جمله نقاط کپچا) از طریق آن رله کار می‌کنند.",
+    mass_target:"هدف", f_sni_list:"هاست‌های SNI (هر کدام در یک خط)",
+    cf_h1:"اسکنر IP", cf_sub:"محدودهٔ IP کلودفلر (یا دلخواه) را برای نقاط TLS قابل دسترس جارو کنید. هر CIDR تا ۲۵۶ هاست باز می‌شود؛ از محدودیت برای کنترل تعداد استفاده کنید.",
+    cf_ranges_t:"محدوده‌ها و پارامترها", f_ranges:"محدوده‌ها — CIDR یا IP، هر کدام در یک خط", f_sni:"SNI", f_limit:"محدودیت (حداکثر IP)",
+    uri_h1:"تجزیه‌گر URI", uri_sub:"لینک‌های vless:// و vmess:// را به هاست، پورت، UUID، SNI، انتقال و TLS تجزیه کنید — سپس مستقیماً به تونل SNI بفرستید.",
+    uri_link:"لینک اشتراک",
+    wd_h1:"درایور WinDivert", wd_sub:"نصب، راه‌اندازی یا حذف درایور هسته‌ای WinDivert برای رهگیری بسته در سطح سیستم. فقط ویندوز و نیازمند دسترسی مدیر.",
+    wd_status_t:"وضعیت", wd_checking:"در حال بررسی…", f_wd_path:"پوشهٔ WinDivert (اختیاری — محل WinDivert64.sys)",
+    wd_notes_t:"یادداشت‌ها",
+    wd_n1:"فایل WinDivert64.sys (و dll/sys متناسب با معماری شما) را کنار این برنامه قرار دهید یا پوشهٔ آن را در بالا مشخص کنید. درایور باید با نسخهٔ ویندوز شما سازگار باشد.",
+    wd_n2:"پیش از نصب، برنامه را به‌عنوان مدیر اجرا کنید — ساخت سرویس هسته نیازمند دسترسی بالا است. روی سیستم‌های غیرویندوزی این تب فقط اطلاع‌رسانی است.",
+    about_h1:"درباره", about_app:"مجموعهٔ تونل SNI / SPlus",
+    about_tagline:"یک جعبه‌ابزار همه‌کاره برای عبور از DPI و جعل SNI — پروکسی، اسکنرها، تستر Xray، تونل LiveKit اسپلاس و مدیریت WinDivert، در یک برنامهٔ سریع و آفلاین Go.",
+    about_madeby:"ساختهٔ", about_what_t:"چه کاری می‌کند",
+    about_f1_t:"تونل SNI", about_f1_d:"پروکسی محلی دو حالته: شفاف (خاتمهٔ TLS با SNI جعلی) یا عبوری (TCP خام برای Xray). همراه با تست رله، بررسی پورت و اشتراک شبکه.",
+    about_f2_t:"تونل SPlus", about_f2_d:"SOCKS5 روی کانال دادهٔ LiveKit یک تماس صوتی سروش‌پلاس — پورتی از theermia/SPlusTunnel.",
+    about_f3_t:"تستر Xray", about_f3_d:"یک لینک vless/vmess وارد کنید و یک درخواست واقعی HTTPS را از طریق پروکسی جعل SNI با یک نمونهٔ محلی xray اندازه بگیرید.",
+    about_f4_t:"اسکنرها", about_f4_d:"بررسی تک SNI، زمان‌بندی رله، اسکن گروهی SNI (با لیست داخلی دامنه‌های کپچا) و جاروی IP کلودفلر.",
+    about_f5_t:"تجزیه‌گر URI", about_f5_d:"لینک‌های vless/vmess را تجزیه کرده و نتیجه را مستقیم به تونل SNI بفرستید.",
+    about_f6_t:"WinDivert", about_f6_d:"نصب / راه‌اندازی / حذف یک‌کلیکی سرویس درایور هسته‌ای WinDivert روی ویندوز.",
+    about_tech_t:"در پشت صحنه",
+    about_tech_d:"یک فایل اجرایی Go مستقل این پنل را روی لوپ‌بک سرو می‌کند. هیچ منبع خارجی بارگذاری نمی‌شود — همه‌چیز کاملاً آفلاین اجرا می‌شود که برای یک ابزار عبور از فیلترینگ مهم است. کنسول زندهٔ پایین وضعیت هر اقدام را با SSE پخش می‌کند.",
+    about_scope_t:"دامنه و ایمنی",
+    about_scope_d:"پروکسی عمداً تأیید گواهی سرور را نادیده می‌گیرد — این ذاتی جعل SNI است، جایی که گواهی ارائه‌شده با SNI جعلی مطابقت ندارد. این ابزار را تنها در جایی که برایتان قانونی است استفاده کنید.",
+    about_lk_note:"تونل SPlus به ساخت با LiveKit نیاز دارد (go build -tags livekit). بدون آن، شروع تونل دستورالعمل ساخت را برمی‌گرداند.",
+    about_follow:"برای به‌روزرسانی‌ها، کانفیگ‌ها و پشتیبانی کانال را دنبال کنید:",
+    r_host:"هاست", r_status:"وضعیت", r_latency:"تأخیر", r_error:"خطا", r_tcp:"اتصال tcp", r_tls:"دست‌دهی tls",
+    r_relay:"رله", r_protocol:"پروتکل", r_port:"پورت", r_uuid:"شناسه", r_sni:"SNI", r_transport:"انتقال",
+    r_path:"مسیر", r_tls_f:"TLS", r_enabled:"فعال", r_none:"ندارد", r_http:"کد HTTP", r_bytes:"بایت",
+    r_xray:"مسیر xray", r_server:"سرور", r_resp:"پاسخ", th_sni:"SNI", th_result:"نتیجه", th_http:"HTTP",
+    th_ip:"IP", th_tlscol:"TLS", th_lat:"تأخیر", m_reachable:"در دسترس", m_working:"فعال",
+    wd_supported:"پشتیبانی", wd_admin:"مدیر", wd_running:"در حال اجرا", wd_installed:"نصب‌شده", yes:"بله", no:"خیر",
+  }
+};
+let LANG = (function(){ try{ return localStorage.getItem("lang")||"en"; }catch(e){ return "en"; } })();
+function t(k){ return (I18N[LANG] && I18N[LANG][k]) || I18N.en[k] || k; }
+function applyLang(){
+  document.documentElement.lang = LANG;
+  document.documentElement.dir = (LANG==="fa") ? "rtl" : "ltr";
+  document.querySelectorAll("[data-i18n]").forEach(el=>{ el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll("[data-i18n-ph]").forEach(el=>{ el.placeholder = t(el.dataset.i18nPh); });
+  $("langBtn").textContent = (LANG==="fa") ? "EN" : "فارسی";
+  document.querySelectorAll(".navbtn").forEach(b=>{ b.querySelector(".nlabel").textContent = t("nav_"+b.dataset.tab); });
+  // re-render dynamic state in the new language
+  proxyUI(state.proxy); splusUI(state.splus);
+  $("conn").lastElementChild.textContent = connState==="live"?t("c_live"):connState==="reconnecting"?t("c_reconnecting"):t("c_connecting");
+}
+$("langBtn").onclick=()=>{ LANG = (LANG==="fa")?"en":"fa"; try{ localStorage.setItem("lang",LANG); }catch(e){} applyLang(); };
+
+/* ===================== tabs ===================== */
+const TABS = [
+  {id:"proxy",ic:"\u224B"},{id:"splus",ic:"\u21C4",tag:"new"},{id:"xray",ic:"\u2713"},
+  {id:"sniscan",ic:"\u25CE"},{id:"mass",ic:"\u22EE"},{id:"cf",ic:"\u229E"},
+  {id:"uri",ic:"\u2301"},{id:"windivert",ic:"\u229E"},{id:"about",ic:"\u24D8"},
+];
+const rail = $("rail");
+TABS.forEach((tb,i)=>{
+  const b=document.createElement("button");
+  b.className="navbtn"+(i===0?" active":""); b.dataset.tab=tb.id;
+  b.innerHTML='<span class="ic">'+tb.ic+'</span><span class="nlabel"></span>'+(tb.tag?'<span class="tag" data-i18n="badge_new"></span>':'');
+  b.onclick=()=>selectTab(tb.id);
+  rail.appendChild(b);
+});
+function selectTab(id){
+  document.querySelectorAll(".navbtn").forEach(n=>n.classList.toggle("active",n.dataset.tab===id));
+  document.querySelectorAll(".panel").forEach(p=>p.classList.toggle("active",p.dataset.panel===id));
+  if(id==="windivert") wdRefresh();
+}
+
+/* ===================== helpers ===================== */
+async function api(path, body){
+  try{
+    const r = await fetch(path,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body||{})});
+    return await r.json();
+  }catch(e){ return {error:String(e)}; }
+}
+const num = v => { const n=parseInt(v,10); return isNaN(n)?0:n; };
+const esc = s => String(s==null?"":s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+const fmtBytes = n => { n=Number(n)||0; const u=["B","KB","MB","GB"]; let i=0; while(n>=1024&&i<u.length-1){n/=1024;i++;} return (i?n.toFixed(1):n)+" "+u[i]; };
+const dash = "\u2014";
+const state = {proxy:false, splus:false};
+
+/* ===================== console / SSE ===================== */
+const logEl=$("log"); let connState="connecting";
+function addLine(e){
+  const d=document.createElement("div"); d.className="ln";
+  d.innerHTML='<span class="ts">'+esc(e.time||"")+'</span><span class="lv-'+esc(e.level||"INFO")+'">'+esc(e.msg||"")+'</span>';
+  logEl.appendChild(d);
+  while(logEl.childElementCount>600) logEl.removeChild(logEl.firstChild);
+  logEl.scrollTop=logEl.scrollHeight;
+}
+$("clearLog").onclick=()=>logEl.innerHTML="";
+function setConn(s){ connState=s; const lbl=s==="live"?t("c_live"):s==="reconnecting"?t("c_reconnecting"):t("c_connecting");
+  $("conn").innerHTML='&#9679; <span>'+esc(lbl)+'</span>'; $("conn").style.color=s==="live"?"var(--success)":s==="reconnecting"?"var(--warning)":"var(--dim)"; }
+function connectSSE(){
+  const es=new EventSource("/api/events");
+  es.onopen=()=>setConn("live");
+  es.onmessage=ev=>{ try{ addLine(JSON.parse(ev.data)); }catch(e){} };
+  es.onerror=()=>{ setConn("reconnecting"); es.close(); setTimeout(connectSSE,1500); };
+}
+connectSSE();
+
+/* ===================== status poll ===================== */
+async function poll(){
+  const p=await api("/api/proxy/status"); state.proxy=!!p.running; setHead("Proxy", state.proxy);
+  const s=await api("/api/splus/status"); state.splus=!!s.running; setHead("Splus", state.splus);
+  if(s.running){ $("s_rx").textContent=fmtBytes(s.rx); $("s_tx").textContent=fmtBytes(s.tx); $("s_roleview").textContent="role: "+(s.role||""); }
+}
+function setHead(name,on){ $("dot"+name).classList.toggle("on",!!on); $("s"+name).textContent=on?"on":"off"; }
+setInterval(poll,2000); poll();
+
+/* ===================== proxy ===================== */
+function proxyUI(running){
+  state.proxy=running;
+  $("p_start").disabled=running; $("p_stop").disabled=!running;
+  const pill=$("p_pill"); pill.className="pill "+(running?"run":"off");
+  pill.innerHTML='<span class="dot '+(running?"on":"")+'"></span>'+esc(running?t("c_running"):t("c_stopped"));
+}
+$("p_lan").onchange=async()=>{
+  if($("p_lan").checked){
+    $("p_lh").value="0.0.0.0";
+    const r=await api("/api/lan/info");
+    const ips=(r.addrs||[]);
+    $("p_laninfo").style.display="block";
+    $("p_laninfo").innerHTML = ips.length
+      ? "LAN: "+ips.map(ip=>esc(ip)+":"+esc($("p_lp").value)).join(" &nbsp; ")
+      : "No LAN address detected.";
+  }else{
+    $("p_lh").value="127.0.0.1"; $("p_laninfo").style.display="none";
+  }
+};
+const UTLS_PRESETS=["none","firefox","chrome","safari","ios","android","edge","360","qq","randomized","random"];
+(function(){ const sel=$("d_utls"); UTLS_PRESETS.forEach(p=>{ const o=document.createElement("option"); o.value=p; o.textContent=p; if(p==="firefox") o.selected=true; sel.appendChild(o); }); })();
+$("p_start").onclick=async()=>{
+  const r=await api("/api/proxy/start",{
+    listen_host:$("p_lh").value.trim(), listen_port:num($("p_lp").value),
+    connect_ip:$("p_ci").value.trim(), connect_port:num($("p_cp").value),
+    fake_sni:$("p_sni").value.trim(), mode:$("p_mode").value,
+    enable_fragment:$("d_frag").checked, sni_chunk:num($("d_chunk").value),
+    fragment_delay_ms:num($("d_fragdelay").value), bypass_mode:$("d_mode").value,
+    utls:$("d_utls").value, fake_repeat:num($("d_repeat").value),
+    fake_delay_ms:num($("d_fakedelay").value), ack_timeout_ms:num($("d_ack").value)});
+  proxyUI(!r.error);
+};
+$("p_stop").onclick=async()=>{ await api("/api/proxy/stop"); proxyUI(false); };
+$("p_checkport").onclick=async()=>{
+  $("p_portout").innerHTML='<div class="result cy">'+esc(t("c_testing"))+'</div>';
+  const r=await api("/api/port/check",{host:$("p_ci").value.trim()||"127.0.0.1", port:num($("p_cp").value)});
+  if(r.error && r.open===undefined){ $("p_portout").innerHTML='<div class="result bad">'+esc(r.error)+'</div>'; return; }
+  $("p_portout").innerHTML='<div class="result"><div class="kv">'+
+    '<div class="k">'+esc(r.host)+':'+esc(r.port)+'</div><div class="v '+(r.open?"ok":"bad")+'">'+esc(r.open?t("st_open"):t("st_closed"))+'</div>'+
+    '<div class="k">'+esc(t("r_latency"))+'</div><div class="v">'+(r.latency<0?dash:r.latency+" ms")+'</div>'+
+    (r.error?'<div class="k">'+esc(t("r_error"))+'</div><div class="v bad">'+esc(r.error)+'</div>':'')+
+    '</div></div>';
+};
+$("pr_go").onclick=async()=>{
+  $("pr_out").innerHTML='<div class="result cy">'+esc(t("c_running_e"))+'</div>';
+  const r=await api("/api/sni/relay-test",{connect_ip:$("p_ci").value.trim(),connect_port:num($("p_cp").value),fake_sni:$("p_sni").value.trim()});
+  $("pr_out").innerHTML=relayHTML(r);
+};
+
+/* ===================== splus ===================== */
+function splusUI(running){
+  state.splus=running;
+  $("s_start").disabled=running; $("s_stop").disabled=!running;
+  const pill=$("s_pill"); pill.className="pill "+(running?"run":"off");
+  pill.innerHTML='<span class="dot '+(running?"on":"")+'"></span>'+esc(running?t("c_running"):t("c_stopped"));
+}
+$("s_role").onchange=()=>{ $("s_clientfields").style.display=$("s_role").value==="client"?"grid":"none"; };
+$("s_start").onclick=async()=>{
+  $("s_lkwarn").style.display="none";
+  const r=await api("/api/splus/start",{role:$("s_role").value,token:$("s_token").value,url:$("s_url").value.trim(),
+    socks_host:$("s_sh").value.trim(),socks_port:num($("s_sp").value)});
+  if(r.error){ splusUI(false);
+    if(r.error.indexOf("LiveKit")>=0){ $("s_lkwarn").style.display="block";
+      $("s_lkwarn").innerHTML="LiveKit transport not compiled in. Rebuild with: <code>go get github.com/livekit/server-sdk-go/v2@latest && go build -tags livekit</code>"; }
+    return; }
+  splusUI(true);
+};
+$("s_stop").onclick=async()=>{ await api("/api/splus/stop"); splusUI(false); };
+
+/* ===================== xray ===================== */
+$("x_go").onclick=async()=>{
+  $("x_go").disabled=true; $("x_meta").textContent=t("c_testing"); $("x_out").innerHTML="";
+  const r=await api("/api/xray/test",{uri:$("x_uri").value,proxy_host:$("x_ph").value.trim(),proxy_port:num($("x_pp").value),
+    socks_port:num($("x_sp").value),test_url:$("x_url").value.trim(),timeout:num($("x_to").value)});
+  $("x_go").disabled=false; $("x_meta").textContent="";
+  if(r.error && !r.xray_path){ $("x_out").innerHTML='<div class="result bad">'+esc(r.error)+'</div>'; return; }
+  $("x_out").innerHTML='<div class="result"><div class="kv">'+
+    '<div class="k">'+esc(t("r_status"))+'</div><div class="v '+(r.ok?"ok":"bad")+'">'+esc(r.ok?t("st_ok"):t("st_failed"))+'</div>'+
+    '<div class="k">'+esc(t("r_xray"))+'</div><div class="v">'+esc(r.xray_path||dash)+'</div>'+
+    '<div class="k">'+esc(t("r_server"))+'</div><div class="v">'+esc(r.server||dash)+'</div>'+
+    '<div class="k">'+esc(t("r_sni"))+'</div><div class="v">'+esc(r.sni||dash)+'</div>'+
+    '<div class="k">'+esc(t("r_http"))+'</div><div class="v">'+(r.http_status||dash)+'</div>'+
+    '<div class="k">'+esc(t("r_resp"))+'</div><div class="v">'+(r.response_ms<0?dash:r.response_ms+" ms")+'</div>'+
+    '<div class="k">'+esc(t("r_bytes"))+'</div><div class="v">'+(r.bytes_received||0)+'</div>'+
+    (r.error?'<div class="k">'+esc(t("r_error"))+'</div><div class="v bad">'+esc(r.error)+'</div>':'')+
+    '</div></div>';
+};
+
+/* ===================== sni scan ===================== */
+$("sn_go").onclick=async()=>{
+  $("sn_out").innerHTML='<div class="result cy">'+esc(t("c_testing"))+'</div>';
+  const r=await api("/api/sni/scan",{host:$("sn_host").value.trim(),port:num($("sn_port").value),timeout:num($("sn_to").value)});
+  if(r.error){ $("sn_out").innerHTML='<div class="result bad">'+esc(r.error)+'</div>'; return; }
+  $("sn_out").innerHTML='<div class="result"><div class="kv">'+
+    '<div class="k">'+esc(t("r_host"))+'</div><div class="v">'+esc(r.host)+'</div>'+
+    '<div class="k">'+esc(t("r_status"))+'</div><div class="v '+(r.ok?"ok":"bad")+'">'+esc(r.ok?t("st_reachable"):t("st_failed"))+'</div>'+
+    '<div class="k">'+esc(t("r_latency"))+'</div><div class="v">'+(r.latency<0?dash:r.latency+" ms")+'</div>'+
+    (r.error?'<div class="k">'+esc(t("r_error"))+'</div><div class="v bad">'+esc(r.error)+'</div>':'')+
+    '</div></div>';
+};
+function relayHTML(r){
+  if(r.error && r.ok===undefined){ return '<div class="result bad">'+esc(r.error)+'</div>'; }
+  return '<div class="result"><div class="kv">'+
+    '<div class="k">'+esc(t("r_status"))+'</div><div class="v '+(r.ok?"ok":"bad")+'">'+esc(r.ok?t("st_ok"):t("st_failed"))+'</div>'+
+    '<div class="k">'+esc(t("r_tcp"))+'</div><div class="v">'+(r.tcp_ms<0?dash:r.tcp_ms+" ms")+'</div>'+
+    '<div class="k">'+esc(t("r_tls"))+'</div><div class="v">'+(r.tls_ms<0?dash:r.tls_ms+" ms")+'</div>'+
+    '<div class="k">'+esc(t("r_relay"))+'</div><div class="v">'+(r.relay_ms<0?dash:r.relay_ms+" ms")+'</div>'+
+    (r.error?'<div class="k">'+esc(t("r_error"))+'</div><div class="v bad">'+esc(r.error)+'</div>':'')+
+    '</div></div>';
+}
+$("rl_go").onclick=async()=>{
+  $("rl_out").innerHTML='<div class="result cy">'+esc(t("c_running_e"))+'</div>';
+  const r=await api("/api/sni/relay-test",{connect_ip:$("rl_ip").value.trim(),connect_port:num($("rl_port").value),fake_sni:$("rl_sni").value.trim()});
+  $("rl_out").innerHTML=relayHTML(r);
+};
+
+/* ===================== mass scan ===================== */
+const CAPTCHA_LIST=[
+"# General front domains","www.google.com","www.gstatic.com","www.cloudflare.com","www.bing.com",
+"www.microsoft.com","www.apple.com","www.wikipedia.org","cdn.jsdelivr.net","ajax.googleapis.com","fonts.googleapis.com",
+"# reCAPTCHA (Google)","www.google.com","www.recaptcha.net","recaptcha.net","www.gstatic.com",
+"# hCaptcha + subdomains","hcaptcha.com","www.hcaptcha.com","js.hcaptcha.com","api.hcaptcha.com","api2.hcaptcha.com",
+"assets.hcaptcha.com","newassets.hcaptcha.com","imgs.hcaptcha.com","accounts.hcaptcha.com",
+"# Cloudflare Turnstile","challenges.cloudflare.com",
+"# Other captcha / bot services","www.arkoselabs.com","client-api.arkoselabs.com","geo.captcha-delivery.com","ct.captcha-delivery.com"
+].join("\n");
+$("ms_snis").value=CAPTCHA_LIST;
+$("ms_def").onclick=()=>{ $("ms_snis").value=CAPTCHA_LIST; };
+$("ms_go").onclick=async()=>{
+  $("ms_go").disabled=true; $("ms_meta").textContent=t("c_scanning"); $("ms_out").innerHTML="";
+  const r=await api("/api/sni/mass-scan",{connect_ip:$("ms_ip").value.trim(),connect_port:num($("ms_port").value),snis:$("ms_snis").value,timeout:num($("ms_to").value)});
+  $("ms_go").disabled=false;
+  if(r.error){ $("ms_meta").textContent=""; $("ms_out").innerHTML='<div class="result bad">'+esc(r.error)+'</div>'; return; }
+  $("ms_meta").textContent=r.ok+"/"+r.total+" "+t("m_reachable");
+  const rows=(r.results||[]).map(x=>'<tr>'+
+    '<td>'+esc(x.sni)+'</td><td class="'+(x.ok?"ok":"bad")+'">'+(x.ok?t("st_ok"):dash)+'</td>'+
+    '<td>'+(x.tcp_ms<0?dash:x.tcp_ms)+'</td><td>'+(x.tls_ms<0?dash:x.tls_ms)+'</td>'+
+    '<td>'+(x.http_ok?t("yes"):t("no"))+'</td><td class="bad">'+esc(x.error||"")+'</td></tr>').join("");
+  $("ms_out").innerHTML='<table><thead><tr><th>'+esc(t("th_sni"))+'</th><th>'+esc(t("th_result"))+'</th><th>TCP ms</th><th>TLS ms</th><th>'+esc(t("th_http"))+'</th><th>'+esc(t("r_error"))+'</th></tr></thead><tbody>'+rows+'</tbody></table>';
+};
+
+/* ===================== cloudflare scan ===================== */
+const CF_DEFAULTS=["173.245.48.0/20","103.21.244.0/22","103.22.200.0/22","103.31.4.0/22","141.101.64.0/18","108.162.192.0/18","190.93.240.0/20","188.114.96.0/20","197.234.240.0/22","198.41.128.0/17","162.158.0.0/15","104.16.0.0/13","104.24.0.0/14","172.64.0.0/13","131.0.72.0/22"].join("\n");
+$("cf_ranges").value=CF_DEFAULTS;
+$("cf_def").onclick=()=>{ $("cf_ranges").value=CF_DEFAULTS; };
+$("cf_go").onclick=async()=>{
+  $("cf_go").disabled=true; $("cf_meta").textContent=t("c_scanning"); $("cf_out").innerHTML="";
+  const r=await api("/api/cf/scan",{ranges:$("cf_ranges").value,port:num($("cf_port").value),sni:$("cf_sni").value.trim(),limit:num($("cf_limit").value)});
+  $("cf_go").disabled=false;
+  if(r.error){ $("cf_meta").textContent=""; $("cf_out").innerHTML='<div class="result bad">'+esc(r.error)+'</div>'; return; }
+  $("cf_meta").textContent=r.ok+"/"+r.total+" "+t("m_working");
+  const all=(r.results||[]); const ordered=all.filter(x=>x.ok).concat(all.filter(x=>!x.ok)).slice(0,400);
+  const rows=ordered.map(x=>'<tr>'+
+    '<td>'+esc(x.ip)+'</td><td class="'+(x.ok?"ok":"bad")+'">'+(x.ok?t("st_ok"):dash)+'</td>'+
+    '<td>'+(x.latency<0?dash:x.latency+" ms")+'</td><td>'+(x.tls_ok?t("yes"):t("no"))+'</td>'+
+    '<td class="bad">'+esc(x.error||"")+'</td></tr>').join("");
+  $("cf_out").innerHTML='<table><thead><tr><th>'+esc(t("th_ip"))+'</th><th>'+esc(t("th_result"))+'</th><th>'+esc(t("th_lat"))+'</th><th>'+esc(t("th_tlscol"))+'</th><th>'+esc(t("r_error"))+'</th></tr></thead><tbody>'+rows+'</tbody></table>';
+};
+
+/* ===================== uri parser ===================== */
+let lastParsed=null;
+$("u_go").onclick=async()=>{
+  const r=await api("/api/uri/parse",{uri:$("u_uri").value});
+  if(!r.valid){ lastParsed=null; $("u_send").disabled=true; $("u_out").innerHTML='<div class="result bad">'+esc(r.error||"invalid")+'</div>'; return; }
+  lastParsed=r; $("u_send").disabled=false;
+  $("u_out").innerHTML='<div class="result"><div class="kv">'+
+    '<div class="k">'+esc(t("r_protocol"))+'</div><div class="v cy">'+esc(r.protocol)+'</div>'+
+    '<div class="k">'+esc(t("r_host"))+'</div><div class="v">'+esc(r.host)+'</div>'+
+    '<div class="k">'+esc(t("r_port"))+'</div><div class="v">'+esc(r.port)+'</div>'+
+    '<div class="k">'+esc(t("r_uuid"))+'</div><div class="v">'+esc(r.uuid)+'</div>'+
+    '<div class="k">'+esc(t("r_sni"))+'</div><div class="v">'+esc(r.sni)+'</div>'+
+    '<div class="k">'+esc(t("r_transport"))+'</div><div class="v">'+esc(r.type)+'</div>'+
+    '<div class="k">'+esc(t("r_path"))+'</div><div class="v">'+esc(r.path)+'</div>'+
+    '<div class="k">'+esc(t("r_tls_f"))+'</div><div class="v '+(r.tls?"ok":"warn")+'">'+esc(r.tls?t("r_enabled"):t("r_none"))+'</div>'+
+    '</div></div>';
+};
+$("u_send").onclick=()=>{
+  if(!lastParsed) return;
+  $("p_ci").value=lastParsed.host; $("p_cp").value=lastParsed.port; $("p_sni").value=lastParsed.sni;
+  $("p_mode").value="passthrough";
+  selectTab("proxy");
+};
+
+/* ===================== windivert ===================== */
+async function wdRefresh(){
+  $("wd_status").innerHTML='<span class="cy">'+esc(t("wd_checking"))+'</span>';
+  const r=await api("/api/windivert/status");
+  const yn=b=>'<span class="'+(b?"ok":"dim")+'">'+(b?t("yes"):t("no"))+'</span>';
+  let line = esc(r.detail||"");
+  $("wd_status").innerHTML='<div class="kv">'+
+    '<div class="k">'+esc(t("r_status"))+'</div><div class="v '+(r.running?"ok":r.installed?"warn":"bad")+'">'+esc(line)+'</div>'+
+    '<div class="k">'+esc(t("wd_supported"))+'</div><div class="v">'+yn(r.supported)+'</div>'+
+    '<div class="k">'+esc(t("wd_admin"))+'</div><div class="v">'+yn(r.admin)+'</div>'+
+    '<div class="k">'+esc(t("wd_installed"))+'</div><div class="v">'+yn(r.installed)+'</div>'+
+    '<div class="k">'+esc(t("wd_running"))+'</div><div class="v">'+yn(r.running)+'</div>'+
+    '</div>';
+}
+$("wd_refresh").onclick=wdRefresh;
+$("wd_install").onclick=async()=>{ await api("/api/windivert/install",{path:$("wd_path").value.trim()}); wdRefresh(); };
+$("wd_uninstall").onclick=async()=>{ await api("/api/windivert/uninstall"); wdRefresh(); };
+
+/* ===================== init ===================== */
+applyLang();
+</script>
+</body>
+</html>
