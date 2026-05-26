@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"splus-suite/internal/protocol"
+	"ezsni/internal/protocol"
 )
 
 // fakeTransport is an in-order, in-memory stand-in for the LiveKit transport.

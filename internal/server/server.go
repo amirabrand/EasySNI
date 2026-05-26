@@ -12,10 +12,12 @@ import (
 	"sync"
 	"time"
 
-	"splus-suite/internal/desync"
-	"splus-suite/internal/logbus"
-	"splus-suite/internal/proxy"
-	"splus-suite/internal/splus"
+	"ezsni/internal/desync"
+	"ezsni/internal/logbus"
+	"ezsni/internal/proxy"
+	"ezsni/internal/psiphon"
+	"ezsni/internal/splus"
+	"ezsni/internal/xray"
 )
 
 //go:embed web/index.html
@@ -30,11 +32,16 @@ type Server struct {
 	tunnel         *splus.Tunnel
 	tunOpts        splus.Options
 	desyncDefaults desync.Config
+	xrayRunner     *xray.Runner
+	psi            *psiphon.Controller
 }
 
 // New returns a Server with a fresh log bus.
 func New() *Server {
-	return &Server{bus: logbus.New(), desyncDefaults: desync.DefaultConfig()}
+	s := &Server{bus: logbus.New(), desyncDefaults: desync.DefaultConfig()}
+	s.xrayRunner = xray.NewRunner(s.bus.Log)
+	s.psi = psiphon.New()
+	return s
 }
 
 // SetDesyncDefaults sets the baseline DPI-evasion config (from CLI flags) used
@@ -64,11 +71,21 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/splus/stop", s.jsonPOST(s.handleSplusStop))
 	mux.HandleFunc("/api/splus/status", s.jsonPOST(s.handleSplusStatus))
 	mux.HandleFunc("/api/xray/test", s.jsonPOST(s.handleXrayTest))
+	mux.HandleFunc("/api/xray/mass", s.jsonPOST(s.handleXrayMass))
+	mux.HandleFunc("/api/xray/find", s.jsonPOST(s.handleXrayFind))
+	mux.HandleFunc("/api/xray/download", s.jsonPOST(s.handleXrayDownload))
+	mux.HandleFunc("/api/xray/start", s.jsonPOST(s.handleXrayStart))
+	mux.HandleFunc("/api/xray/stop", s.jsonPOST(s.handleXrayStop))
+	mux.HandleFunc("/api/xray/status", s.jsonPOST(s.handleXrayStatus))
 	mux.HandleFunc("/api/windivert/status", s.jsonPOST(s.handleWinDivertStatus))
 	mux.HandleFunc("/api/windivert/install", s.jsonPOST(s.handleWinDivertInstall))
 	mux.HandleFunc("/api/windivert/uninstall", s.jsonPOST(s.handleWinDivertUninstall))
 	mux.HandleFunc("/api/port/check", s.jsonPOST(s.handlePortCheck))
 	mux.HandleFunc("/api/lan/info", s.jsonPOST(s.handleLANInfo))
+	mux.HandleFunc("/api/cdn/scan", s.jsonPOST(s.handleCDNScan))
+	mux.HandleFunc("/api/psiphon/start", s.jsonPOST(s.handlePsiphonStart))
+	mux.HandleFunc("/api/psiphon/stop", s.jsonPOST(s.handlePsiphonStop))
+	mux.HandleFunc("/api/psiphon/status", s.jsonPOST(s.handlePsiphonStatus))
 	return mux
 }
 

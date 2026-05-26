@@ -1,6 +1,6 @@
 package splus
 
-import "splus-suite/internal/protocol"
+import "ezsni/internal/protocol"
 
 // Role selects which end of the tunnel to run.
 type Role string
@@ -17,6 +17,8 @@ type Options struct {
 	URL       string // LiveKit URL; defaults to DefaultLKURL
 	SocksHost string // client only; defaults to DefaultSocksHost
 	SocksPort int    // client only; defaults to DefaultSocksPort
+	SocksUser string // client only; optional SOCKS5 username (LAN auth)
+	SocksPass string // client only; optional SOCKS5 password
 }
 
 // Tunnel is a running server or client instance.
@@ -78,6 +80,7 @@ func Start(opts Options, log LogFunc) (*Tunnel, error) {
 			port = DefaultSocksPort
 		}
 		t.socks = NewSocksServer(t.cli, log)
+		t.socks.SetAuth(opts.SocksUser, opts.SocksPass)
 		if err := t.socks.Start(host, port); err != nil {
 			_ = tr.Close()
 			return nil, err

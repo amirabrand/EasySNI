@@ -22,7 +22,7 @@ import (
 	"sync"
 	"time"
 
-	"splus-suite/internal/sni"
+	"ezsni/internal/sni"
 )
 
 // lockBuf is a tiny concurrency-safe buffer for capturing a child process's
@@ -110,11 +110,25 @@ func FindXray() string {
 // Options configures a test run.
 type Options struct {
 	URI        string // vless:// or vmess:// share link
+	BinPath    string // explicit xray/v2ray path; auto-detected when empty
 	ProxyHost  string // local SNI-spoof proxy host the outbound dials (default 127.0.0.1)
 	ProxyPort  int    // local SNI-spoof proxy port (default 10808)
+	Direct     bool   // if true, xray connects straight to the config server (no local proxy)
 	SocksPort  int    // local SOCKS inbound xray opens for the test (default 10809)
 	TestURL    string // URL to fetch through the tunnel (default https://www.google.com/generate_204)
 	TimeoutSec int    // overall request timeout (default 12)
+}
+
+// ResolveBin returns the xray path to use: the explicit path if set and present,
+// otherwise the auto-detected one ("" if none).
+func ResolveBin(explicit string) string {
+	explicit = strings.TrimSpace(explicit)
+	if explicit != "" {
+		if st, err := os.Stat(explicit); err == nil && !st.IsDir() {
+			return explicit
+		}
+	}
+	return FindXray()
 }
 
 // Result is the outcome of a test run.
@@ -133,9 +147,12 @@ type Result struct {
 // buildConfig writes a temp xray config and returns its path. The outbound dials
 // proxyHost:proxyPort (the locally running SNI-spoof proxy); xray's own TLS uses
 // the parsed SNI.
-func buildConfig(p sni.ParsedURI, proxyHost string, proxyPort, socksPort int) (string, error) {
+func buildConfig(p sni.ParsedURI, outHost string, outPort int, listenHost string, socksPort int) (string, error) {
 	if !p.Valid {
 		return "", errors.New("invalid URI")
+	}
+	if listenHost == "" {
+		listenHost = "127.0.0.1"
 	}
 	security := "none"
 	if p.TLS {
@@ -165,7 +182,7 @@ func buildConfig(p sni.ParsedURI, proxyHost string, proxyPort, socksPort int) (s
 	cfg := map[string]any{
 		"log": map[string]any{"loglevel": "warning"},
 		"inbounds": []any{map[string]any{
-			"listen":   "127.0.0.1",
+			"listen":   listenHost,
 			"port":     socksPort,
 			"protocol": "socks",
 			"settings": map[string]any{"auth": "noauth", "udp": true},
@@ -173,8 +190,8 @@ func buildConfig(p sni.ParsedURI, proxyHost string, proxyPort, socksPort int) (s
 		"outbounds": []any{map[string]any{
 			"protocol": p.Protocol,
 			"settings": map[string]any{"vnext": []any{map[string]any{
-				"address": proxyHost,
-				"port":    proxyPort,
+				"address": outHost,
+				"port":    outPort,
 				"users":   []any{user},
 			}}},
 			"streamSettings": stream,
@@ -223,15 +240,33 @@ func Test(opts Options, log LogFunc) Result {
 		return res
 	}
 
-	xrayPath := FindXray()
+	xrayPath := ResolveBin(opts.BinPath)
 	if xrayPath == "" {
-		res.Error = "xray/v2ray binary not found in PATH or common locations"
+		res.Error = "xray/v2ray binary not found — set its path or use Download"
 		return res
 	}
 	res.XrayPath = xrayPath
 	log("Using "+xrayPath, "DIM")
 
-	cfgPath, err := buildConfig(parsed, opts.ProxyHost, opts.ProxyPort, opts.SocksPort)
+	// Determine the outbound target: straight to the config server (Direct) or
+	// through the local SNI-spoof proxy.
+	outHost, outPort := opts.ProxyHost, opts.ProxyPort
+	if opts.Direct {
+		outHost, outPort = parsed.Host, parsed.Port
+	} else {
+		// Pre-flight: the outbound dials the local SNI-spoof proxy. If nothing is
+		// listening there, fail fast rather than letting xray emit "closed pipe".
+		paddr := net.JoinHostPort(opts.ProxyHost, strconv.Itoa(opts.ProxyPort))
+		if c, e := net.DialTimeout("tcp", paddr, 1500*time.Millisecond); e != nil {
+			res.Error = "no proxy is listening on " + paddr +
+				" — start the SNI Tunnel proxy in PASSTHROUGH mode first, or enable Direct"
+			return res
+		} else {
+			_ = c.Close()
+		}
+	}
+
+	cfgPath, err := buildConfig(parsed, outHost, outPort, "127.0.0.1", opts.SocksPort)
 	if err != nil {
 		res.Error = "config: " + err.Error()
 		return res

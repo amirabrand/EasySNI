@@ -11,13 +11,82 @@ import (
 	"math/big"
 	"net"
 	"strconv"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
-	"splus-suite/internal/desync"
+	"ezsni/internal/desync"
 )
 
-// selfSigned makes a throwaway cert for the loopback TLS echo server.
+// TestCopyClientToUpstreamRewritesHost verifies CDN-fronting Host rewriting on
+// an HTTP request, and that non-HTTP (TLS-looking) streams pass through.
+func TestCopyClientToUpstreamRewritesHost(t *testing.T) {
+	// HTTP request: Host must be rewritten.
+	cIn, cOut := net.Pipe()
+	dst := &syncBuf{}
+	go copyClientToUpstream(dst, cIn, "real.example.net")
+	req := "GET /path HTTP/1.1\r\nHost: front.cdn.com\r\nUser-Agent: x\r\n\r\nbody"
+	go func() { _, _ = cOut.Write([]byte(req)); _ = cOut.Close() }()
+	time.Sleep(150 * time.Millisecond)
+	got := dst.String()
+	if !strings.Contains(got, "Host: real.example.net\r\n") {
+		t.Fatalf("Host not rewritten: %q", got)
+	}
+	if strings.Contains(got, "front.cdn.com") {
+		t.Fatalf("original Host leaked: %q", got)
+	}
+	if !strings.Contains(got, "GET /path HTTP/1.1") || !strings.Contains(got, "body") {
+		t.Fatalf("request mangled: %q", got)
+	}
+
+	// Non-HTTP (TLS record) must be relayed unchanged.
+	c2In, c2Out := net.Pipe()
+	dst2 := &syncBuf{}
+	go copyClientToUpstream(dst2, c2In, "real.example.net")
+	tlsBytes := []byte{0x16, 0x03, 0x01, 0x00, 0x05, 0x01, 0x02, 0x03}
+	go func() { _, _ = c2Out.Write(tlsBytes); _ = c2Out.Close() }()
+	time.Sleep(150 * time.Millisecond)
+	if dst2.String() != string(tlsBytes) {
+		t.Fatalf("TLS stream altered: %x", dst2.String())
+	}
+}
+
+func TestPickSNIRotates(t *testing.T) {
+	c := &Config{SNIList: []string{"a.com", "b.com", "c.com"}}
+	seen := map[string]bool{}
+	for i := 0; i < 200; i++ {
+		s := c.pickSNI()
+		if s != "a.com" && s != "b.com" && s != "c.com" {
+			t.Fatalf("unexpected SNI %q", s)
+		}
+		seen[s] = true
+	}
+	if len(seen) < 2 {
+		t.Fatalf("rotation not happening, only saw %v", seen)
+	}
+	// Falls back to FakeSNI when the list is empty.
+	c2 := &Config{FakeSNI: "only.com"}
+	if c2.pickSNI() != "only.com" {
+		t.Fatal("empty list should use FakeSNI")
+	}
+}
+
+type syncBuf struct {
+	mu sync.Mutex
+	b  strings.Builder
+}
+
+func (s *syncBuf) Write(p []byte) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.Write(p)
+}
+func (s *syncBuf) String() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.String()
+}
 func selfSigned(t *testing.T) tls.Certificate {
 	t.Helper()
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)

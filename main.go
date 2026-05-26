@@ -1,4 +1,4 @@
-// Command splus-suite launches the local web control panel for the SNI / SPlus
+// Command ezsni launches the local web control panel — EzSNI, a DPI-bypass
 // tunnel toolkit. It binds to a loopback address and serves a single-page UI.
 package main
 
@@ -17,8 +17,8 @@ import (
 	"syscall"
 	"time"
 
-	"splus-suite/internal/desync"
-	"splus-suite/internal/server"
+	"ezsni/internal/desync"
+	"ezsni/internal/server"
 )
 
 func main() {
@@ -104,13 +104,13 @@ func main() {
 }
 
 func banner(bus interface{ Log(string, string) }, url string) {
-	bus.Log("SNI / SPlus Tunnel Suite — Go edition", "ACCENT")
+	bus.Log("EzSNI — DPI Bypass Suite · by MacanDev", "ACCENT")
 	bus.Log("Control panel: "+url, "OK")
 	bus.Log("SNI proxy, scanners, URI parser, and SPlus LiveKit tunnel ready.", "DIM")
 	bus.Log("Note: the SPlus tunnel needs a LiveKit build — see README (go build -tags livekit).", "DIM")
 	fmt.Println()
 	fmt.Println("  ┌──────────────────────────────────────────────┐")
-	fmt.Println("  │   SNI / SPlus Tunnel Suite  (Go edition)       │")
+	fmt.Println("  │   EzSNI  ·  DPI Bypass Suite  ·  by MacanDev   │")
 	fmt.Println("  ├──────────────────────────────────────────────┤")
 	fmt.Printf("  │   Open: %-38s│\n", url)
 	fmt.Println("  │   Press Ctrl-C to stop.                        │")

@@ -1,3 +1,3 @@
-module splus-suite
+module ezsni
 
 go 1.22

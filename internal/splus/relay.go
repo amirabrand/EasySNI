@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"splus-suite/internal/protocol"
+	"ezsni/internal/protocol"
 )
 
 // ---------------------------------------------------------------------------
