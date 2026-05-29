@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"syscall"
@@ -22,8 +23,10 @@ import (
 )
 
 func main() {
-	addr := flag.String("addr", "127.0.0.1:8765", "address to listen on")
-	open := flag.Bool("open", true, "open the UI in the default browser on start")
+	addr := flag.String("addr", "0.0.0.0:8765", "address to listen on (default exposes the panel on the LAN)")
+	open := flag.Bool("open", true, "open the UI on start (native app window if a Chromium browser is found, else default browser)")
+	window := flag.Bool("window", true, "prefer a chromeless native-style window (Chrome/Edge --app) over a browser tab")
+	minimize := flag.Bool("minimize", true, "minimize the console window after the UI opens (Windows only)")
 
 	// DPI-evasion defaults (overridable per-start from the UI).
 	fakeRepeat := flag.Int("fake-repeat", 1, "number of fake ClientHello injections")
@@ -78,8 +81,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	url := "http://" + *addr + "/"
-	banner(bus, url)
+	// When binding on all interfaces, browsers can't fetch http://0.0.0.0/ —
+	// open the loopback form and list every LAN address in the banner.
+	_, port, _ := net.SplitHostPort(*addr)
+	openURL := "http://localhost:" + port + "/"
+	banner(bus, openURL, port)
 
 	go func() {
 		if err := httpSrv.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -89,7 +95,14 @@ func main() {
 	}()
 
 	if *open {
-		go openBrowser(url)
+		if *window {
+			go openAppWindow(openURL)
+		} else {
+			go openBrowser(openURL)
+		}
+		if *minimize {
+			go func() { time.Sleep(1200 * time.Millisecond); minimizeConsole() }()
+		}
 	}
 
 	// Wait for Ctrl-C / SIGTERM, then shut down gracefully.
@@ -103,19 +116,50 @@ func main() {
 	_ = httpSrv.Shutdown(ctx)
 }
 
-func banner(bus interface{ Log(string, string) }, url string) {
-	bus.Log("EzSNI — DPI Bypass Suite · by MacanDev", "ACCENT")
+func banner(bus interface{ Log(string, string) }, url, port string) {
+	bus.Log("V2RayEz — DPI Bypass & CDN Toolkit · by MacanDev · @EzAccess1", "ACCENT")
 	bus.Log("Control panel: "+url, "OK")
+	lanURLs := lanAddresses(port)
+	for _, u := range lanURLs {
+		bus.Log("LAN access:    "+u, "DIM")
+	}
 	bus.Log("SNI proxy, scanners, URI parser, and SPlus LiveKit tunnel ready.", "DIM")
 	bus.Log("Note: the SPlus tunnel needs a LiveKit build — see README (go build -tags livekit).", "DIM")
 	fmt.Println()
-	fmt.Println("  ┌──────────────────────────────────────────────┐")
-	fmt.Println("  │   EzSNI  ·  DPI Bypass Suite  ·  by MacanDev   │")
-	fmt.Println("  ├──────────────────────────────────────────────┤")
-	fmt.Printf("  │   Open: %-38s│\n", url)
-	fmt.Println("  │   Press Ctrl-C to stop.                        │")
-	fmt.Println("  └──────────────────────────────────────────────┘")
+	fmt.Println("  ┌──────────────────────────────────────────────────────┐")
+	fmt.Println("  │   V2RayEz  ·  DPI Bypass & CDN Toolkit  ·  MacanDev     │")
+	fmt.Println("  ├──────────────────────────────────────────────────────┤")
+	fmt.Printf("  │   Open: %-46s│\n", url)
+	for _, u := range lanURLs {
+		fmt.Printf("  │   LAN:  %-46s│\n", u)
+	}
+	fmt.Println("  │   Press Ctrl-C to stop.                                │")
+	fmt.Println("  └──────────────────────────────────────────────────────┘")
 	fmt.Println()
+}
+
+// lanAddresses returns every non-loopback IPv4 the host advertises, formatted
+// as URLs, so the user can reach the panel from phones/other devices.
+func lanAddresses(port string) []string {
+	out := []string{}
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return out
+	}
+	for _, iface := range ifaces {
+		if iface.Flags&net.FlagLoopback != 0 || iface.Flags&net.FlagUp == 0 {
+			continue
+		}
+		addrs, _ := iface.Addrs()
+		for _, a := range addrs {
+			ipNet, ok := a.(*net.IPNet)
+			if !ok || ipNet.IP.To4() == nil {
+				continue
+			}
+			out = append(out, "http://"+ipNet.IP.String()+":"+port+"/")
+		}
+	}
+	return out
 }
 
 func openBrowser(url string) {
@@ -131,4 +175,77 @@ func openBrowser(url string) {
 		cmd, args = "xdg-open", []string{url}
 	}
 	_ = exec.Command(cmd, args...).Start()
+}
+
+// openAppWindow launches a Chromium-based browser (Chrome/Edge/Brave/Chromium)
+// in --app mode, giving a chromeless, native-feeling window dedicated to the
+// panel. Falls back to the default browser when no Chromium browser is found.
+// No CGO and no extra dependencies — it just drives an installed browser.
+func openAppWindow(url string) {
+	time.Sleep(300 * time.Millisecond)
+	bin := findChromium()
+	if bin == "" {
+		openBrowser(url)
+		return
+	}
+	profile := filepath.Join(os.TempDir(), "v2rayez-window")
+	args := []string{
+		"--app=" + url,
+		"--user-data-dir=" + profile,
+		"--no-first-run",
+		"--no-default-browser-check",
+		"--window-size=1180,820",
+	}
+	if err := exec.Command(bin, args...).Start(); err != nil {
+		openBrowser(url)
+	}
+}
+
+// findChromium returns the path to an installed Chromium-family browser, or "".
+func findChromium() string {
+	// PATH lookups first (Linux/macOS, and Windows when on PATH).
+	names := []string{"google-chrome", "google-chrome-stable", "chromium", "chromium-browser", "brave-browser", "microsoft-edge", "microsoft-edge-stable", "msedge", "chrome"}
+	for _, n := range names {
+		if p, err := exec.LookPath(n); err == nil {
+			return p
+		}
+	}
+	// Well-known absolute locations per OS.
+	var candidates []string
+	switch runtime.GOOS {
+	case "windows":
+		pf := os.Getenv("ProgramFiles")
+		pfx86 := os.Getenv("ProgramFiles(x86)")
+		local := os.Getenv("LocalAppData")
+		candidates = []string{
+			filepath.Join(pf, "Google", "Chrome", "Application", "chrome.exe"),
+			filepath.Join(pfx86, "Google", "Chrome", "Application", "chrome.exe"),
+			filepath.Join(local, "Google", "Chrome", "Application", "chrome.exe"),
+			filepath.Join(pf, "Microsoft", "Edge", "Application", "msedge.exe"),
+			filepath.Join(pfx86, "Microsoft", "Edge", "Application", "msedge.exe"),
+			filepath.Join(pf, "BraveSoftware", "Brave-Browser", "Application", "brave.exe"),
+			filepath.Join(pfx86, "BraveSoftware", "Brave-Browser", "Application", "brave.exe"),
+		}
+	case "darwin":
+		candidates = []string{
+			"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+			"/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+			"/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
+			"/Applications/Chromium.app/Contents/MacOS/Chromium",
+		}
+	default:
+		candidates = []string{
+			"/usr/bin/google-chrome", "/usr/bin/chromium", "/usr/bin/chromium-browser",
+			"/usr/bin/microsoft-edge", "/usr/bin/brave-browser", "/snap/bin/chromium",
+		}
+	}
+	for _, c := range candidates {
+		if c == "" {
+			continue
+		}
+		if st, err := os.Stat(c); err == nil && !st.IsDir() {
+			return c
+		}
+	}
+	return ""
 }

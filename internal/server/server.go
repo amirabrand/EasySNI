@@ -5,6 +5,7 @@
 package server
 
 import (
+	"context"
 	"embed"
 	"encoding/json"
 	"fmt"
@@ -16,6 +17,7 @@ import (
 	"ezsni/internal/logbus"
 	"ezsni/internal/proxy"
 	"ezsni/internal/psiphon"
+	"ezsni/internal/singbox"
 	"ezsni/internal/splus"
 	"ezsni/internal/xray"
 )
@@ -33,13 +35,21 @@ type Server struct {
 	tunOpts        splus.Options
 	desyncDefaults desync.Config
 	xrayRunner     *xray.Runner
+	singboxRunner  *singbox.Runner
 	psi            *psiphon.Controller
+	cdnMu          sync.Mutex
+	cdn            *xray.CDNScanState
+	cdnCancel      context.CancelFunc
+	siteMu         sync.Mutex
+	site           *siteScanState
+	siteCancel     context.CancelFunc
 }
 
 // New returns a Server with a fresh log bus.
 func New() *Server {
 	s := &Server{bus: logbus.New(), desyncDefaults: desync.DefaultConfig()}
 	s.xrayRunner = xray.NewRunner(s.bus.Log)
+	s.singboxRunner = singbox.NewRunner(s.bus.Log)
 	s.psi = psiphon.New()
 	return s
 }
@@ -63,6 +73,11 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/sni/scan", s.jsonPOST(s.handleSNIScan))
 	mux.HandleFunc("/api/sni/relay-test", s.jsonPOST(s.handleRelayTest))
 	mux.HandleFunc("/api/sni/mass-scan", s.jsonPOST(s.handleMassScan))
+	mux.HandleFunc("/api/sites/scan", s.jsonPOST(s.handleSitesScan))
+	mux.HandleFunc("/api/sites/scan/status", s.jsonPOST(s.handleSitesScanStatus))
+	mux.HandleFunc("/api/sites/scan/stop", s.jsonPOST(s.handleSitesScanStop))
+	mux.HandleFunc("/api/sni/saved/save", s.jsonPOST(s.handleSavedSNISave))
+	mux.HandleFunc("/api/sni/saved/load", s.jsonPOST(s.handleSavedSNILoad))
 	mux.HandleFunc("/api/cf/scan", s.jsonPOST(s.handleCFScan))
 	mux.HandleFunc("/api/proxy/start", s.jsonPOST(s.handleProxyStart))
 	mux.HandleFunc("/api/proxy/stop", s.jsonPOST(s.handleProxyStop))
@@ -72,11 +87,28 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/splus/status", s.jsonPOST(s.handleSplusStatus))
 	mux.HandleFunc("/api/xray/test", s.jsonPOST(s.handleXrayTest))
 	mux.HandleFunc("/api/xray/mass", s.jsonPOST(s.handleXrayMass))
+	mux.HandleFunc("/api/xray/cdnconfigs", s.jsonPOST(s.handleXrayCDNConfigs))
+	mux.HandleFunc("/api/xray/cdnconfigs/status", s.jsonPOST(s.handleXrayCDNConfigsStatus))
+	mux.HandleFunc("/api/xray/cdnconfigs/stop", s.jsonPOST(s.handleXrayCDNConfigsStop))
+	mux.HandleFunc("/api/xray/cdnconfigs/pause", s.jsonPOST(s.handleXrayCDNConfigsPause))
+	mux.HandleFunc("/api/xray/cdnconfigs/resume", s.jsonPOST(s.handleXrayCDNConfigsResume))
 	mux.HandleFunc("/api/xray/find", s.jsonPOST(s.handleXrayFind))
+	mux.HandleFunc("/api/xray/update-configs", s.jsonPOST(s.handleXrayUpdateConfigs))
+	mux.HandleFunc("/api/edge/uuid", s.jsonPOST(s.handleEdgeUUID))
+	mux.HandleFunc("/api/edge/generate", s.jsonPOST(s.handleEdgeGenerate))
+	mux.HandleFunc("/api/qr", s.jsonPOST(s.handleQR))
+	mux.HandleFunc("/api/subscribe", s.jsonPOST(s.handleSubscribe))
+	mux.HandleFunc("/api/configs/store/save", s.jsonPOST(s.handleConfigsStoreSave))
+	mux.HandleFunc("/api/configs/store/load", s.jsonPOST(s.handleConfigsStoreLoad))
 	mux.HandleFunc("/api/xray/download", s.jsonPOST(s.handleXrayDownload))
 	mux.HandleFunc("/api/xray/start", s.jsonPOST(s.handleXrayStart))
 	mux.HandleFunc("/api/xray/stop", s.jsonPOST(s.handleXrayStop))
 	mux.HandleFunc("/api/xray/status", s.jsonPOST(s.handleXrayStatus))
+	mux.HandleFunc("/api/singbox/find", s.jsonPOST(s.handleSingboxFind))
+	mux.HandleFunc("/api/singbox/download", s.jsonPOST(s.handleSingboxDownload))
+	mux.HandleFunc("/api/singbox/start", s.jsonPOST(s.handleSingboxStart))
+	mux.HandleFunc("/api/singbox/stop", s.jsonPOST(s.handleSingboxStop))
+	mux.HandleFunc("/api/singbox/status", s.jsonPOST(s.handleSingboxStatus))
 	mux.HandleFunc("/api/windivert/status", s.jsonPOST(s.handleWinDivertStatus))
 	mux.HandleFunc("/api/windivert/install", s.jsonPOST(s.handleWinDivertInstall))
 	mux.HandleFunc("/api/windivert/uninstall", s.jsonPOST(s.handleWinDivertUninstall))
@@ -86,6 +118,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/psiphon/start", s.jsonPOST(s.handlePsiphonStart))
 	mux.HandleFunc("/api/psiphon/stop", s.jsonPOST(s.handlePsiphonStop))
 	mux.HandleFunc("/api/psiphon/status", s.jsonPOST(s.handlePsiphonStatus))
+	mux.HandleFunc("/api/config/save", s.jsonPOST(s.handleConfigSave))
+	mux.HandleFunc("/api/config/load", s.jsonPOST(s.handleConfigLoad))
 	return mux
 }
 

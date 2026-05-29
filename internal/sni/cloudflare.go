@@ -102,3 +102,62 @@ func TestIP(ip string, port int, sniName string, timeout time.Duration) CFResult
 	res.OK = res.RelayOK
 	return res
 }
+
+// IsCloudflareIP reports whether ip falls within any built-in Cloudflare range.
+func IsCloudflareIP(ip string) bool {
+	addr, err := netip.ParseAddr(strings.TrimSpace(ip))
+	if err != nil {
+		return false
+	}
+	for _, c := range DefaultCloudflareRanges {
+		if p, err := netip.ParsePrefix(c); err == nil && p.Contains(addr) {
+			return true
+		}
+	}
+	return false
+}
+
+// CFSiteResult reports a domain's resolved IP, reachability, latency, and
+// whether it is served from Cloudflare's edge.
+type CFSiteResult struct {
+	Domain       string `json:"domain"`
+	IP           string `json:"ip"`
+	Reachable    bool   `json:"reachable"`
+	LatencyMs    int    `json:"latency"`
+	OnCloudflare bool   `json:"on_cloudflare"`
+	Error        string `json:"error"`
+}
+
+// CheckCloudflareSite resolves domain, TLS-handshakes to it on port (using the
+// domain as SNI) to measure reachability + latency, and flags whether the
+// resolved IP belongs to Cloudflare. It answers both "is this site reachable
+// and what's its IP" and "is this site behind Cloudflare" in one probe.
+func CheckCloudflareSite(domain string, port int, timeout time.Duration) CFSiteResult {
+	domain = strings.TrimSpace(domain)
+	res := CFSiteResult{Domain: domain, LatencyMs: -1}
+	if domain == "" {
+		res.Error = "empty domain"
+		return res
+	}
+	// DNS first, so CF detection works even if the TLS probe fails.
+	if ips, err := net.LookupIP(domain); err == nil {
+		for _, ip := range ips {
+			if v4 := ip.To4(); v4 != nil {
+				res.IP = v4.String()
+				break
+			}
+		}
+		if res.IP == "" && len(ips) > 0 {
+			res.IP = ips[0].String()
+		}
+	}
+	r := CheckSNI(domain, port, timeout)
+	if r.IP != "" {
+		res.IP = r.IP
+	}
+	res.Reachable = r.OK
+	res.LatencyMs = r.Latency
+	res.Error = r.Error
+	res.OnCloudflare = IsCloudflareIP(res.IP)
+	return res
+}

@@ -54,21 +54,31 @@ func FrontTest(ip string, port int, frontSNI, realHost string, timeout time.Dura
 	}
 	res.TLSms = ms(t1)
 
+	// TLS handshake completing against the front SNI proves this edge is
+	// reachable and accepts our fronting setup. The HTTP probe below is just
+	// best-effort: many CF-fronted services only respond on their WS/specific
+	// path, so HEAD / can hang or return nothing — that's fine.
+	res.OK = true
+	res.PingMs = res.TLSms
+
+	// Short, independent deadline for the HTTP probe so we don't wait the full
+	// connection timeout on workers that ignore HEAD /.
+	probeDeadline := 1500 * time.Millisecond
+	if d := timeout / 3; d > probeDeadline {
+		probeDeadline = d
+	}
+	_ = tc.SetDeadline(time.Now().Add(probeDeadline))
 	req := "HEAD / HTTP/1.1\r\nHost: " + host + "\r\nUser-Agent: Mozilla/5.0\r\nConnection: close\r\n\r\n"
 	t2 := time.Now()
 	if _, err := tc.Write([]byte(req)); err != nil {
-		res.Error = trunc(err.Error(), 60)
 		return res
 	}
 	buf := make([]byte, 256)
 	n, _ := tc.Read(buf)
-	res.PingMs = ms(t2)
-	if n <= 0 {
-		res.Error = "no response after TLS"
-		return res
+	if n > 0 {
+		res.PingMs = ms(t2)
+		res.HTTPStatus = parseHTTPStatus(string(buf[:n]))
 	}
-	res.HTTPStatus = parseHTTPStatus(string(buf[:n]))
-	res.OK = true
 	return res
 }
 

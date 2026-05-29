@@ -3,6 +3,7 @@ package xray
 import (
 	"archive/zip"
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -20,38 +21,92 @@ import (
 	"ezsni/internal/sni"
 )
 
-// ---- mass URI connectivity test -------------------------------------------
+// ---- mass URI test (real xray run) ----------------------------------------
 
-// MassRow is one config's reachability result.
+// MassRow is one config's result from a real xray run.
 type MassRow struct {
-	URI     string `json:"uri"`
-	Name    string `json:"name"` // protocol@host:port
-	OK      bool   `json:"ok"`
-	PingMs  int    `json:"ping_ms"`  // TCP connect, -1 on failure
-	RelayMs int    `json:"relay_ms"` // TLS handshake + first byte, -1 on failure
-	Host    string `json:"host"`
-	Port    int    `json:"port"`
-	SNI     string `json:"sni"`
-	Error   string `json:"error"`
+	URI        string `json:"uri"`
+	Name       string `json:"name"` // protocol@host:port
+	Protocol   string `json:"protocol"`
+	OK         bool   `json:"ok"`
+	PingMs     int    `json:"ping_ms"`     // TCP connect to the server, -1 on failure
+	RelayMs    int    `json:"relay_ms"`    // full request through xray, -1 on failure
+	HTTPStatus int    `json:"http_status"` // status of the fetched test host
+	DownKbps   int    `json:"down_kbps"`   // download throughput when WithSpeeds, -1 otherwise
+	UpKbps     int    `json:"up_kbps"`     // upload throughput when WithSpeeds, -1 otherwise
+	Host       string `json:"host"`
+	Port       int    `json:"port"`
+	SNI        string `json:"sni"`
+	Error      string `json:"error"`
 }
 
-// MassTest parses each URI and measures TCP connect (ping) plus TLS-handshake/
-// relay delay against the config's own server. It does not need xray. Results
-// are sorted reachable-first, then by lowest relay delay.
-func MassTest(uris []string, timeout time.Duration) []MassRow {
-	rows := make([]MassRow, len(uris))
+// MassXrayOptions configures a real-xray mass test.
+type MassXrayOptions struct {
+	URIs          []string
+	BinPath       string
+	ProxyHost     string // SNI tunnel host (used when !Direct)
+	ProxyPort     int    // SNI tunnel port
+	Direct        bool   // connect straight to each config server instead of via the tunnel
+	TestURL       string // host to fetch through each config, e.g. https://instagram.com
+	TimeoutSec    int    // per-config timeout (default 10)
+	BasePort      int    // first SOCKS port; each config uses BasePort+index (default 11400)
+	Concurrency   int    // simultaneous xray processes (default 3)
+	WithSpeeds    bool   // also measure download + upload via Cloudflare speedtest
+	DownloadBytes int    // bytes to download per config (default 2 MB)
+	UploadBytes   int    // bytes to upload per config (default 1 MB)
+}
+
+// MassXray runs xray once per URI — through the SNI tunnel unless Direct — and
+// fetches TestURL through each, measuring TCP ping to the server and the full
+// relay time through the tunnel. Results are sorted reachable-first by relay.
+func MassXray(opts MassXrayOptions, log LogFunc) ([]MassRow, error) {
+	if log == nil {
+		log = func(string, string) {}
+	}
+	bin := ResolveBin(opts.BinPath)
+	if bin == "" {
+		return nil, errors.New("xray binary not found — set its path or use Download")
+	}
+	if opts.TestURL == "" {
+		opts.TestURL = "http://cp.cloudflare.com/generate_204"
+	}
+	if opts.TimeoutSec == 0 {
+		opts.TimeoutSec = 10
+	}
+	if opts.BasePort == 0 {
+		opts.BasePort = 11400
+	}
+	if opts.Concurrency <= 0 {
+		opts.Concurrency = 3
+	}
+	if opts.ProxyHost == "" {
+		opts.ProxyHost = "127.0.0.1"
+	}
+	// If routing through the tunnel, make sure it is actually up.
+	if !opts.Direct {
+		paddr := net.JoinHostPort(opts.ProxyHost, strconv.Itoa(opts.ProxyPort))
+		if c, e := net.DialTimeout("tcp", paddr, 1500*time.Millisecond); e != nil {
+			return nil, errors.New("no SNI Tunnel proxy listening on " + paddr +
+				" — start it in PASSTHROUGH mode first, or enable Direct")
+		} else {
+			_ = c.Close()
+		}
+	}
+
+	rows := make([]MassRow, len(opts.URIs))
 	var wg sync.WaitGroup
-	sem := make(chan struct{}, 32)
-	for i, u := range uris {
+	sem := make(chan struct{}, opts.Concurrency)
+	for i, u := range opts.URIs {
 		wg.Add(1)
 		sem <- struct{}{}
 		go func(i int, u string) {
 			defer wg.Done()
 			defer func() { <-sem }()
-			rows[i] = massOne(u, timeout)
+			rows[i] = massXrayOne(bin, u, opts.BasePort+i, opts, log)
 		}(i, u)
 	}
 	wg.Wait()
+
 	sort.SliceStable(rows, func(a, b int) bool {
 		if rows[a].OK != rows[b].OK {
 			return rows[a].OK
@@ -65,33 +120,110 @@ func MassTest(uris []string, timeout time.Duration) []MassRow {
 		}
 		return ra < rb
 	})
-	return rows
+	return rows, nil
 }
 
-func massOne(uri string, timeout time.Duration) MassRow {
+func massXrayOne(bin, uri string, socksPort int, opts MassXrayOptions, log LogFunc) MassRow {
 	p := sni.ParseURI(uri)
 	row := MassRow{URI: uri, PingMs: -1, RelayMs: -1}
 	if !p.Valid {
 		row.Error = "parse: " + p.Error
 		return row
 	}
-	row.Host, row.Port, row.SNI = p.Host, p.Port, p.SNI
+	row.Protocol, row.Host, row.Port, row.SNI = p.Protocol, p.Host, p.Port, p.SNI
 	row.Name = p.Protocol + "@" + p.Host + ":" + strconv.Itoa(p.Port)
-	r := sni.RelayTest(p.Host, p.Port, p.SNI, timeout)
-	row.PingMs = r.TCPMs
-	if r.TCPMs >= 0 && r.TLSMs >= 0 {
-		row.RelayMs = r.TLSMs + maxInt(r.RelayMs, 0)
-	}
-	row.OK = r.OK
-	row.Error = r.Error
-	return row
-}
 
-func maxInt(a, b int) int {
-	if a > b {
-		return a
+	// Quick TCP ping to the server (connect to host).
+	t0 := time.Now()
+	if c, e := net.DialTimeout("tcp", net.JoinHostPort(p.Host, strconv.Itoa(p.Port)), 3*time.Second); e == nil {
+		row.PingMs = int(time.Since(t0).Milliseconds())
+		_ = c.Close()
 	}
-	return b
+
+	outHost, outPort := p.Host, p.Port
+	if !opts.Direct {
+		outHost, outPort = opts.ProxyHost, opts.ProxyPort
+	}
+	cfgPath, err := buildConfig(p, outHost, outPort, "127.0.0.1", socksPort)
+	if err != nil {
+		row.Error = "config: " + err.Error()
+		return row
+	}
+	defer os.Remove(cfgPath)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(opts.TimeoutSec+6)*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, bin, "-c", cfgPath)
+	var out lockBuf
+	cmd.Stdout, cmd.Stderr = &out, &out
+	hideWindow(cmd)
+	if err := cmd.Start(); err != nil {
+		row.Error = "start xray: " + err.Error()
+		return row
+	}
+	waitErr := make(chan error, 1)
+	go func() { waitErr <- cmd.Wait() }()
+	defer func() { _ = cmd.Process.Kill() }()
+
+	socksAddr := net.JoinHostPort("127.0.0.1", strconv.Itoa(socksPort))
+	ready := false
+	deadline := time.Now().Add(6 * time.Second)
+	for time.Now().Before(deadline) {
+		select {
+		case e := <-waitErr:
+			row.Error = "xray exited: " + procDetail(e, out.String())
+			return row
+		default:
+		}
+		if c, e := net.DialTimeout("tcp", socksAddr, 250*time.Millisecond); e == nil {
+			_ = c.Close()
+			ready = true
+			break
+		}
+		time.Sleep(120 * time.Millisecond)
+	}
+	if !ready {
+		row.Error = "xray not ready: " + procDetail(nil, out.String())
+		return row
+	}
+	// The SOCKS listener accepts immediately, but the WS+TLS outbound needs a
+	// moment to warm up. Give it a brief grace period, then try the probe with
+	// one retry so a cold-start handshake doesn't show up as a false timeout.
+	time.Sleep(250 * time.Millisecond)
+	fetchTimeout := time.Duration(opts.TimeoutSec) * time.Second
+	start := time.Now()
+	status, _, err := fetchThroughSocks("127.0.0.1", socksPort, opts.TestURL, fetchTimeout)
+	if err != nil {
+		time.Sleep(400 * time.Millisecond)
+		start = time.Now()
+		status, _, err = fetchThroughSocks("127.0.0.1", socksPort, opts.TestURL, fetchTimeout)
+	}
+	if err != nil {
+		row.Error = "fetch: " + truncate(err.Error(), 90)
+		return row
+	}
+	row.RelayMs = int(time.Since(start).Milliseconds())
+	row.HTTPStatus = status
+	row.OK = status > 0 && status < 500
+	if !row.OK {
+		row.Error = "HTTP " + strconv.Itoa(status)
+		return row
+	}
+	row.DownKbps, row.UpKbps = -1, -1
+	if opts.WithSpeeds {
+		spTimeout := time.Duration(opts.TimeoutSec) * time.Second
+		if down, derr := MeasureDownload("127.0.0.1", socksPort, opts.DownloadBytes, spTimeout); derr == nil {
+			row.DownKbps = down
+		} else {
+			row.Error = "download: " + truncateErr(derr, 80)
+		}
+		if up, uerr := MeasureUpload("127.0.0.1", socksPort, opts.UploadBytes, spTimeout); uerr == nil {
+			row.UpKbps = up
+		} else if row.Error == "" {
+			row.Error = "upload: " + truncateErr(uerr, 80)
+		}
+	}
+	return row
 }
 
 // ---- persistent on-device runner ------------------------------------------
@@ -141,20 +273,28 @@ func (r *Runner) Status() map[string]any {
 	if r.cmd == nil {
 		return map[string]any{"running": false}
 	}
+	server := ""
+	if p := sni.ParseURI(r.uri); p.Valid {
+		server = net.JoinHostPort(p.Host, strconv.Itoa(p.Port))
+	}
 	return map[string]any{
 		"running": true,
 		"socks":   net.JoinHostPort(r.listen, strconv.Itoa(r.port)),
 		"uri":     r.uri,
+		"server":  server,
 		"bin":     r.bin,
 	}
 }
 
-// Start launches xray with a SOCKS inbound for device-wide use.
+// Start launches xray with a SOCKS inbound for device-wide use. If an instance
+// is already running, it is stopped first so Start always switches to the new
+// config (e.g. clicking Connect on a different IP).
 func (r *Runner) Start(opts RunOptions) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.cmd != nil {
-		return errors.New("xray already running")
+		r.log("Switching connection — stopping current xray…", "DIM")
+		r.stopLocked()
 	}
 	bin := ResolveBin(opts.BinPath)
 	if bin == "" {
@@ -220,10 +360,8 @@ func (r *Runner) Start(opts RunOptions) error {
 	return nil
 }
 
-// Stop terminates the supervised xray process.
-func (r *Runner) Stop() {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+// stopLocked kills the running process; callers must hold r.mu.
+func (r *Runner) stopLocked() {
 	if r.cmd == nil {
 		return
 	}
@@ -233,6 +371,18 @@ func (r *Runner) Stop() {
 		_ = os.Remove(r.cfgPath)
 	}
 	r.cmd, r.cfgPath = nil, ""
+	// Give the OS a moment to release the SOCKS listening port before a restart.
+	time.Sleep(120 * time.Millisecond)
+}
+
+// Stop terminates the supervised xray process.
+func (r *Runner) Stop() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.cmd == nil {
+		return
+	}
+	r.stopLocked()
 	r.log("xray stopped", "WARN")
 }
 

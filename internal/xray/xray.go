@@ -158,13 +158,6 @@ func buildConfig(p sni.ParsedURI, outHost string, outPort int, listenHost string
 	if p.TLS {
 		security = "tls"
 	}
-	user := map[string]any{"id": p.UUID}
-	if p.Protocol == "vless" {
-		user["encryption"] = "none"
-	} else { // vmess
-		user["alterId"] = 0
-		user["security"] = "auto"
-	}
 	stream := map[string]any{
 		"network":  p.Type,
 		"security": security,
@@ -179,6 +172,48 @@ func buildConfig(p sni.ParsedURI, outHost string, outPort int, listenHost string
 			"headers": map[string]any{"Host": p.SNI},
 		}
 	}
+
+	var outbound map[string]any
+	switch p.Protocol {
+	case "trojan":
+		outbound = map[string]any{
+			"protocol": "trojan",
+			"settings": map[string]any{"servers": []any{map[string]any{
+				"address":  outHost,
+				"port":     outPort,
+				"password": p.Password,
+			}}},
+			"streamSettings": stream,
+		}
+	case "shadowsocks":
+		outbound = map[string]any{
+			"protocol": "shadowsocks",
+			"settings": map[string]any{"servers": []any{map[string]any{
+				"address":  outHost,
+				"port":     outPort,
+				"method":   p.Method,
+				"password": p.Password,
+			}}},
+		}
+	default: // vless / vmess
+		user := map[string]any{"id": p.UUID}
+		if p.Protocol == "vless" {
+			user["encryption"] = "none"
+		} else {
+			user["alterId"] = 0
+			user["security"] = "auto"
+		}
+		outbound = map[string]any{
+			"protocol": p.Protocol,
+			"settings": map[string]any{"vnext": []any{map[string]any{
+				"address": outHost,
+				"port":    outPort,
+				"users":   []any{user},
+			}}},
+			"streamSettings": stream,
+		}
+	}
+
 	cfg := map[string]any{
 		"log": map[string]any{"loglevel": "warning"},
 		"inbounds": []any{map[string]any{
@@ -187,15 +222,7 @@ func buildConfig(p sni.ParsedURI, outHost string, outPort int, listenHost string
 			"protocol": "socks",
 			"settings": map[string]any{"auth": "noauth", "udp": true},
 		}},
-		"outbounds": []any{map[string]any{
-			"protocol": p.Protocol,
-			"settings": map[string]any{"vnext": []any{map[string]any{
-				"address": outHost,
-				"port":    outPort,
-				"users":   []any{user},
-			}}},
-			"streamSettings": stream,
-		}},
+		"outbounds": []any{outbound},
 	}
 	b, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
@@ -227,7 +254,7 @@ func Test(opts Options, log LogFunc) Result {
 		opts.SocksPort = 10809
 	}
 	if opts.TestURL == "" {
-		opts.TestURL = "https://www.google.com/generate_204"
+		opts.TestURL = "http://cp.cloudflare.com/generate_204"
 	}
 	if opts.TimeoutSec == 0 {
 		opts.TimeoutSec = 12

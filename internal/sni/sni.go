@@ -38,6 +38,8 @@ type ParsedURI struct {
 	Host     string `json:"host"`
 	Port     int    `json:"port"`
 	UUID     string `json:"uuid"`
+	Password string `json:"password"` // trojan / shadowsocks
+	Method   string `json:"method"`   // shadowsocks cipher
 	SNI      string `json:"sni"`
 	Type     string `json:"type"`
 	Path     string `json:"path"`
@@ -137,10 +139,147 @@ func ParseURI(uri string) ParsedURI {
 		r.TLS = strings.ToLower(d.TLS) == "tls"
 		r.Valid = true
 
+	case strings.HasPrefix(uri, "trojan://"):
+		u, err := url.Parse(uri)
+		if err != nil {
+			r.Error = err.Error()
+			return r
+		}
+		qs := u.Query()
+		host := u.Hostname()
+		sni := qs.Get("sni")
+		if sni == "" {
+			sni = qs.Get("peer")
+		}
+		if sni == "" {
+			sni = host
+		}
+		typ := qs.Get("type")
+		if typ == "" {
+			typ = "tcp"
+		}
+		path := qs.Get("path")
+		if path == "" {
+			path = "/"
+		}
+		pw := ""
+		if u.User != nil {
+			pw = u.User.Username()
+		}
+		r.Protocol = "trojan"
+		r.Host = host
+		r.Port = SafePort(u.Port(), 443)
+		r.Password = pw
+		r.SNI = sni
+		r.Type = typ
+		r.Path = path
+		r.TLS = qs.Get("security") != "none" // trojan defaults to TLS
+		r.Valid = host != "" && pw != ""
+		if !r.Valid && r.Error == "" {
+			r.Error = "trojan: missing host or password"
+		}
+
+	case strings.HasPrefix(uri, "ss://"):
+		method, password, host, port, perr := parseShadowsocks(uri)
+		if perr != "" {
+			r.Error = perr
+			return r
+		}
+		r.Protocol = "shadowsocks"
+		r.Host = host
+		r.Port = port
+		r.Method = method
+		r.Password = password
+		r.SNI = host
+		r.Type = "tcp"
+		r.TLS = false
+		r.Valid = host != "" && method != "" && port > 0
+
 	default:
 		r.Error = "Unknown protocol"
 	}
 	return r
+}
+
+// decodeB64Loose tries the common base64 variants used in share links.
+func decodeB64Loose(s string) (string, bool) {
+	s = strings.TrimSpace(s)
+	for _, enc := range []*base64.Encoding{
+		base64.RawURLEncoding, base64.URLEncoding,
+		base64.RawStdEncoding, base64.StdEncoding,
+	} {
+		if b, err := enc.DecodeString(s); err == nil {
+			return string(b), true
+		}
+	}
+	// try with padding fixed for std
+	if pad := len(s) % 4; pad != 0 {
+		s2 := s + strings.Repeat("=", 4-pad)
+		if b, err := base64.StdEncoding.DecodeString(s2); err == nil {
+			return string(b), true
+		}
+	}
+	return "", false
+}
+
+func splitHostPortLoose(hp string) (string, int) {
+	hp = strings.TrimSpace(hp)
+	if h, p, err := net.SplitHostPort(hp); err == nil {
+		return h, SafePort(p, 0)
+	}
+	if i := strings.LastIndexByte(hp, ':'); i >= 0 {
+		return hp[:i], SafePort(hp[i+1:], 0)
+	}
+	return hp, 0
+}
+
+// parseShadowsocks handles SIP002 (ss://b64(method:pass)@host:port) and the
+// legacy fully-base64 form (ss://b64(method:pass@host:port)).
+func parseShadowsocks(uri string) (method, password, host string, port int, errStr string) {
+	body := strings.TrimPrefix(uri, "ss://")
+	if i := strings.IndexByte(body, '#'); i >= 0 { // strip name
+		body = body[:i]
+	}
+	if i := strings.IndexByte(body, '?'); i >= 0 { // strip plugin/query
+		body = body[:i]
+	}
+	body = strings.TrimSpace(body)
+	if body == "" {
+		return "", "", "", 0, "ss: empty"
+	}
+	if at := strings.LastIndexByte(body, '@'); at >= 0 {
+		userinfo := body[:at]
+		host, port = splitHostPortLoose(body[at+1:])
+		mp := userinfo
+		if dec, ok := decodeB64Loose(userinfo); ok && strings.Contains(dec, ":") {
+			mp = dec
+		}
+		if c := strings.IndexByte(mp, ':'); c >= 0 {
+			method, password = mp[:c], mp[c+1:]
+		} else {
+			return "", "", "", 0, "ss: bad method:password"
+		}
+	} else {
+		dec, ok := decodeB64Loose(body)
+		if !ok {
+			return "", "", "", 0, "ss: cannot decode"
+		}
+		at := strings.LastIndexByte(dec, '@')
+		if at < 0 {
+			return "", "", "", 0, "ss: missing @host:port"
+		}
+		mp := dec[:at]
+		host, port = splitHostPortLoose(dec[at+1:])
+		if c := strings.IndexByte(mp, ':'); c >= 0 {
+			method, password = mp[:c], mp[c+1:]
+		} else {
+			return "", "", "", 0, "ss: bad method:password"
+		}
+	}
+	if host == "" || port == 0 {
+		return "", "", "", 0, "ss: missing host/port"
+	}
+	return method, password, host, port, ""
 }
 
 func tlsConfig(serverName string) *tls.Config {
@@ -150,13 +289,14 @@ func tlsConfig(serverName string) *tls.Config {
 // SNIResult is the outcome of a single SNI reachability check.
 type SNIResult struct {
 	Host    string `json:"host"`
+	IP      string `json:"ip"` // resolved address actually connected to
 	OK      bool   `json:"ok"`
 	Latency int    `json:"latency"` // ms, -1 on failure
 	Error   string `json:"error"`
 }
 
 // CheckSNI dials host:port and completes a TLS handshake using host as SNI.
-// Mirrors check_sni_reachable.
+// Mirrors check_sni_reachable. It also reports the resolved peer IP.
 func CheckSNI(host string, port int, timeout time.Duration) SNIResult {
 	start := time.Now()
 	addr := net.JoinHostPort(host, strconv.Itoa(port))
@@ -165,12 +305,16 @@ func CheckSNI(host string, port int, timeout time.Duration) SNIResult {
 		return SNIResult{Host: host, OK: false, Latency: -1, Error: trunc(err.Error(), 60)}
 	}
 	defer conn.Close()
+	ip := ""
+	if ra, ok := conn.RemoteAddr().(*net.TCPAddr); ok {
+		ip = ra.IP.String()
+	}
 	tc := tls.Client(conn, tlsConfig(host))
 	_ = tc.SetDeadline(time.Now().Add(timeout))
 	if err := tc.Handshake(); err != nil {
-		return SNIResult{Host: host, OK: false, Latency: -1, Error: trunc(err.Error(), 60)}
+		return SNIResult{Host: host, IP: ip, OK: false, Latency: -1, Error: trunc(err.Error(), 60)}
 	}
-	return SNIResult{Host: host, OK: true, Latency: int(time.Since(start).Milliseconds())}
+	return SNIResult{Host: host, IP: ip, OK: true, Latency: int(time.Since(start).Milliseconds())}
 }
 
 // RelayResult reports timings for the connect/handshake/relay stages.

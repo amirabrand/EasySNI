@@ -147,6 +147,20 @@ func (p *Proxy) Stop() {
 // Running reports whether the proxy is accepting connections.
 func (p *Proxy) Running() bool { return p.running.Load() }
 
+// ListenHostPort returns the address the proxy is currently bound to, so other
+// features (e.g. the Mass URI tester) can route through it without the user
+// re-typing the port. Returns ("",0) when not running.
+func (p *Proxy) ListenHostPort() (string, int) {
+	if !p.running.Load() {
+		return "", 0
+	}
+	host := p.cfg.ListenHost
+	if host == "" || host == "0.0.0.0" {
+		host = "127.0.0.1"
+	}
+	return host, p.cfg.ListenPort
+}
+
 func (p *Proxy) acceptLoop() {
 	defer p.wg.Done()
 	for p.running.Load() {

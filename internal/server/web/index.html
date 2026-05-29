@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>EzSNI — by MacanDev</title>
+<title>V2RayEz — by MacanDev · @EzAccess1</title>
 <style>
   :root{
     --bg:#080a0f; --panel:#10131b; --panel2:#161a24; --border:#222734;
@@ -93,6 +93,38 @@
   .g2{grid-template-columns:1fr 1fr}
   .g3{grid-template-columns:1fr 1fr 1fr}
   @media(max-width:760px){.g2,.g3{grid-template-columns:1fr}}
+  /* ---- mobile / narrow screens ---- */
+  .navtoggle{display:none}
+  @media(max-width:820px){
+    .app{grid-template-columns:1fr;grid-template-rows:auto auto 1fr auto;
+      grid-template-areas:"head" "rail" "main" "console";height:auto;min-height:100vh;}
+    html[dir=rtl] .app{grid-template-columns:1fr;grid-template-areas:"head" "rail" "main" "console";}
+    header{flex-wrap:wrap;gap:8px;padding:8px 12px;height:auto;position:sticky;top:0;z-index:60}
+    .navtoggle{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;flex:0 0 auto;
+      background:rgba(47,230,200,.08);border:1px solid var(--border);border-radius:9px;color:var(--accent);
+      font-size:18px;cursor:pointer}
+    .head-status{flex-wrap:wrap;gap:8px;width:100%;font-size:11px}
+    .logo{font-size:15px;flex:1}
+    /* nav becomes a collapsible dropdown — NOT sticky, so it can't overlap the header */
+    nav#rail{display:none;flex-direction:column;gap:3px;padding:10px 12px;max-height:64vh;overflow-y:auto;
+      border-bottom:1px solid var(--border);border-inline-end:none;background:var(--panel,#0d1016);
+      -webkit-overflow-scrolling:touch;}
+    nav#rail.navopen{display:flex}
+    nav#rail .navsec{display:block;padding:10px 6px 4px}
+    .navbtn{width:100%;justify-content:flex-start;padding:11px 14px}
+    .navbtn .nlabel{font-size:13.5px}
+    main{padding:16px 14px}
+    h1{font-size:21px} .panel h1{font-size:21px}
+    .card{padding:14px}
+    .xpill{flex-wrap:wrap}
+    .sitecard{grid-template-columns:24px 1fr;gap:8px}
+    .sitecard .acts{grid-column:1 / -1;justify-content:flex-end;flex-wrap:wrap}
+    .cfgrow{grid-template-columns:18px 1fr;gap:7px}
+    .cfgrow .acts{grid-column:1 / -1;justify-content:flex-end;flex-wrap:wrap;margin-top:4px}
+    .cardscroll,.cfglist{max-height:none}
+    .row{flex-wrap:wrap}
+    .grouptabs{overflow-x:auto;flex-wrap:nowrap}
+  }
   label{display:block}
   label .lbl{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.13em;
     text-transform:uppercase;color:var(--dim);margin-bottom:6px}
@@ -180,6 +212,121 @@
   .tech{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
   .tech span{font-family:var(--mono);font-size:11px;color:var(--accent);border:1px solid rgba(47,230,200,.3);
     background:rgba(47,230,200,.05);border-radius:20px;padding:4px 12px}
+  /* CDN Configs live top cards */
+  .topcard{display:grid;grid-template-columns:34px 38px 1fr auto;gap:10px;align-items:center;
+    padding:10px 14px;border:1px solid var(--border);border-radius:11px;
+    background:linear-gradient(180deg,rgba(22,26,36,.55),rgba(16,19,27,.75));margin-bottom:8px;
+    transition:.15s;font-family:var(--mono);font-size:12.5px}
+  .topcard:hover{border-color:rgba(47,230,200,.32);transform:translateY(-1px)}
+  .topcard .rank{font-size:18px;color:var(--accent);text-align:center;font-weight:700}
+  .topcard .ic{font-size:20px;text-align:center}
+  .topcard .body .ttl{color:var(--bright);font-weight:600;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .topcard .body .meta{color:var(--dim);font-size:11.5px;margin-top:3px;display:flex;gap:14px;flex-wrap:wrap}
+  .topcard .body .meta b{color:var(--text);font-weight:500}
+  .topcard .score{text-align:right;font-size:18px;font-weight:700;color:var(--accent);min-width:70px}
+  .topcard .actions{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+  .topcard.testing{opacity:.78;border-color:rgba(255,191,71,.35)}
+  .stbadge{display:inline-block;font-size:10px;padding:2px 7px;border-radius:5px;font-family:var(--mono);letter-spacing:.06em}
+  .stbadge.good{background:rgba(52,211,153,.14);color:var(--success);border:1px solid rgba(52,211,153,.4)}
+  .stbadge.dlonly,.stbadge.ulonly{background:rgba(255,191,71,.12);color:var(--warning);border:1px solid rgba(255,191,71,.4)}
+  .stbadge.below{background:rgba(125,135,152,.12);color:var(--dim);border:1px solid var(--border)}
+  /* progress bar — moving stripes while a scan runs, dimmed when paused */
+  @keyframes cc_stripes { from { background-position:0 0 } to { background-position:32px 0 } }
+  #cc_progbar.running #cc_progfill::after{
+    content:"";position:absolute;inset:0;
+    background-image:linear-gradient(45deg,rgba(255,255,255,.16) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.16) 50%,rgba(255,255,255,.16) 75%,transparent 75%,transparent);
+    background-size:32px 32px;animation:cc_stripes 1s linear infinite;
+  }
+  #cc_progbar.paused #cc_progfill{filter:grayscale(.6) brightness(.7)}
+  #cc_progbar.paused.running #cc_progfill::after{animation-play-state:paused}
+  /* Sidebar section headers */
+  .navsec{font-family:var(--mono);font-size:9.5px;color:var(--dim);text-transform:uppercase;letter-spacing:.18em;
+    padding:18px 18px 6px;border-top:1px solid var(--border);margin-top:6px}
+  .navsec:first-child{border-top:none;margin-top:0;padding-top:14px}
+  /* Global indeterminate progress strip — turned on whenever an api() is in flight */
+  #gprog{position:fixed;top:0;left:0;right:0;height:2px;background:transparent;z-index:9999;pointer-events:none}
+  #gprog.busy{background:linear-gradient(90deg,transparent,var(--accent),transparent);background-size:35% 100%;background-repeat:no-repeat;animation:gprog-slide 1.1s linear infinite}
+  @keyframes gprog-slide { 0%{background-position:-40% 0} 100%{background-position:140% 0} }
+  /* Header xray pill — visible across every tab */
+  .xpill{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;
+    padding:4px 9px;border-radius:14px;border:1px solid var(--border);background:rgba(8,10,15,.4)}
+  .xpill.on{border-color:rgba(47,230,200,.45);color:var(--accent)}
+  .xpill.off{color:var(--dim)}
+  .xpill button{margin-inline-start:6px;background:transparent;border:1px solid currentColor;border-radius:8px;
+    color:inherit;font-family:var(--mono);font-size:10px;padding:1px 8px;cursor:pointer}
+  .xpill button:hover{background:rgba(255,255,255,.05)}
+  .xpill .hdrtun{display:inline-flex;align-items:center;gap:3px;font-size:10px;cursor:pointer;color:var(--dim);margin-inline-start:4px}
+  .xpill .hdrtun input{accent-color:var(--accent);width:12px;height:12px}
+  /* Per-row copy buttons inside top cards */
+  .topcard .actions{flex-direction:row;gap:6px;align-items:center}
+  .topcard .actions .iconbtn{background:transparent;border:1px solid var(--border);color:var(--dim);
+    border-radius:7px;cursor:pointer;font-size:11px;padding:5px 8px;line-height:1;font-family:var(--mono)}
+  .topcard .actions .iconbtn:hover{color:var(--accent);border-color:rgba(47,230,200,.4)}
+  /* config manager */
+  .grouptabs{display:flex;flex-wrap:wrap;gap:6px}
+  .grouptab{font-family:var(--mono);font-size:12px;padding:6px 14px;border-radius:9px;border:1px solid var(--border);
+    background:rgba(16,19,27,.5);color:var(--dim);cursor:pointer;transition:.15s}
+  .grouptab:hover{color:var(--text);border-color:rgba(47,230,200,.3)}
+  .grouptab.active{color:var(--accent);border-color:rgba(47,230,200,.5);background:rgba(47,230,200,.07)}
+  .dropzone{border:1.5px dashed var(--border);border-radius:11px;padding:8px;transition:.15s}
+  .dropzone.drag{border-color:var(--accent);background:rgba(47,230,200,.06)}
+  .cfgrow{display:grid;grid-template-columns:22px 1fr auto;gap:10px;align-items:center;padding:9px 12px;
+    border:1px solid var(--border);border-radius:9px;background:rgba(16,19,27,.45);margin-bottom:6px;
+    font-family:var(--mono);font-size:12px;cursor:pointer;transition:.12s}
+  .cfgrow:hover{border-color:rgba(47,230,200,.28)}
+  .cfgrow.sel{border-color:var(--accent2);background:rgba(90,169,255,.08)}
+  .cfgrow.active{border-color:var(--success);background:rgba(52,211,153,.10)}
+  .cfgrow .nm{color:var(--bright);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cfgrow .nm small{color:var(--dim);font-size:10.5px}
+  .cfgrow .pingv{color:var(--accent);font-size:11px;margin-inline-start:8px}
+  .cfgrow .acts{display:flex;gap:5px;align-items:center}
+  .cfgrow .acts .iconbtn{background:transparent;border:1px solid var(--border);color:var(--dim);border-radius:6px;
+    cursor:pointer;font-size:11px;padding:4px 7px;line-height:1;font-family:var(--mono)}
+  .cfgrow .acts .iconbtn:hover{color:var(--accent);border-color:rgba(47,230,200,.4)}
+  .cfgrow .dotc{width:9px;height:9px;border-radius:50%;background:var(--border)}
+  .cfgrow.active .dotc{background:var(--success);box-shadow:0 0 7px var(--success)}
+  .cfglist{max-height:540px;overflow-y:auto;padding-inline-end:4px}
+  .cfglist::-webkit-scrollbar{width:9px}
+  .cfglist::-webkit-scrollbar-thumb{background:var(--border);border-radius:5px}
+  /* reusable scanner progress bar */
+  .scanprog{height:7px;border-radius:5px;background:rgba(255,255,255,.06);overflow:hidden;margin:12px 0 4px;border:1px solid var(--border)}
+  .scanprog-fill{height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:5px;transition:width .35s ease}
+  .scanprog.indet .scanprog-fill{width:35%;animation:scanindet 1.1s ease-in-out infinite}
+  @keyframes scanindet{0%{margin-left:-35%}100%{margin-left:100%}}
+  /* scrollable card container — shows ~10 then scrolls; page stays put */
+  .cardscroll{max-height:560px;overflow-y:auto;padding-inline-end:4px;display:flex;flex-direction:column;gap:8px}
+  .cardscroll::-webkit-scrollbar{width:9px}
+  .cardscroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:5px}
+  /* site result + saved-SNI card */
+  .sitecard{display:grid;grid-template-columns:30px 1fr auto;gap:12px;align-items:center;padding:11px 14px;
+    border:1px solid var(--border);border-radius:10px;background:rgba(16,19,27,.5)}
+  .sitecard.down{opacity:.6}
+  .sitecard .ic{font-size:18px;text-align:center}
+  .sitecard .host{color:var(--bright);font-family:var(--mono);font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sitecard .sub{display:flex;flex-wrap:wrap;gap:10px;margin-top:3px;font-family:var(--mono);font-size:11px;color:var(--dim)}
+  .sitecard .sub b{color:var(--text);font-weight:500}
+  .sitecard .sub .cy{color:var(--accent)}
+  .sitecard .acts{display:flex;gap:6px;align-items:center}
+  .sitecard .acts button{font-family:var(--mono);font-size:11px;padding:6px 11px;border-radius:8px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--dim)}
+  .sitecard .acts button:hover{color:var(--accent);border-color:rgba(47,230,200,.4)}
+  .sitecard .acts .conn{border-color:rgba(52,211,153,.5);color:var(--success)}
+  .sitecard .acts .conn:hover{background:rgba(52,211,153,.1)}
+  /* simple modal (QR / edit / share) */
+  .modal{position:fixed;inset:0;background:rgba(4,6,10,.72);z-index:10000;display:none;align-items:center;justify-content:center}
+  .modal.show{display:flex}
+  .modal .box{background:var(--panel,#11141b);border:1px solid var(--border);border-radius:14px;padding:22px;max-width:90vw;max-height:88vh;overflow:auto;text-align:center}
+  .modal .box h3{margin:0 0 12px;font-family:var(--mono);color:var(--bright)}
+  .modal .box img{background:#fff;border-radius:8px;padding:10px}
+  .modal .box textarea{width:min(520px,80vw);min-height:90px;margin-top:10px}
+  .modal .box .row{justify-content:center;margin-top:12px}
+  /* right-click context menu */
+  .ctxmenu{position:fixed;z-index:10001;background:var(--panel,#11141b);border:1px solid var(--border);
+    border-radius:10px;padding:5px;min-width:170px;box-shadow:0 12px 40px rgba(0,0,0,.5)}
+  .ctxitem{font-family:var(--mono);font-size:12.5px;color:var(--text);padding:8px 12px;border-radius:7px;cursor:pointer;white-space:nowrap}
+  .ctxitem:hover{background:rgba(47,230,200,.1);color:var(--accent)}
+  .changelog{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:10px}
+  .changelog li{font-size:13px;line-height:1.55;color:var(--text)}
+  .changelog li b{font-family:var(--mono);color:var(--accent);margin-inline-end:4px}
   /* console */
   .console{grid-area:console;border-top:1px solid var(--border);background:#0a0c10;display:flex;flex-direction:column}
   .console .bar{display:flex;align-items:center;gap:12px;padding:8px 18px;border-bottom:1px solid var(--border)}
@@ -201,12 +348,16 @@
 </style>
 </head>
 <body>
+<div id="gprog"></div>
+<div class="modal" id="modal"><div class="box" id="modalBox"></div></div>
 <div class="app">
   <header>
-    <div class="logo"><span class="mark">Ez</span> <span><b>Ez</b><span class="z">SNI</span></span> <small data-i18n="hdr_edition">By MacanDev</small></div>
+    <button class="navtoggle" id="navToggle" aria-label="menu">☰</button>
+    <div class="logo"><span class="mark">V2</span> <span><b>V2Ray</b><span class="z">Ez</span></span> <small data-i18n="hdr_edition">By MacanDev · @EzAccess1</small></div>
     <div class="head-status">
       <span><span id="dotProxy" class="dot"></span><span data-i18n="hdr_proxy">Proxy</span> <b id="sProxy">off</b></span>
       <span><span id="dotSplus" class="dot"></span><span data-i18n="hdr_splus">SPlus</span> <b id="sSplus">off</b></span>
+      <span class="xpill off" id="hdrXray"><span data-i18n="hdr_xray">xray</span> <b id="hdrXrayState">off</b><label class="hdrtun" title="TUN"><input type="checkbox" id="hdrTun"><span data-i18n="hdr_tun">TUN</span></label><button id="hdrXrayStart" data-i18n="c_start">Start</button><button id="hdrXrayStop" hidden data-i18n="c_stop">Stop</button></span>
       <button class="langbtn" id="langBtn">فارسی</button>
     </div>
   </header>
@@ -214,6 +365,47 @@
   <nav id="rail"></nav>
 
   <main>
+    <!-- CONFIGS (LIBRARY / MANAGER) -->
+    <section class="panel" data-panel="configs">
+      <h1 data-i18n="cfgm_h1">Config Library</h1>
+      <p class="sub" data-i18n="cfgm_sub">Organize your configs into groups, import subscriptions, drag-and-drop links, then test, share (QR / copy), and connect. Ctrl/⌘-click to multi-select; press Enter to connect the selected one. Everything is saved automatically.</p>
+
+      <div class="card">
+        <div class="grouptabs" id="cfgm_groups"></div>
+        <div class="row" style="margin-top:10px">
+          <button class="act btn-ghost" id="cfgm_addgroup" data-i18n="c_add_group">+ Group</button>
+          <button class="act btn-ghost" id="cfgm_rengroup" data-i18n="c_rename_group">Rename</button>
+          <button class="act btn-ghost" id="cfgm_delgroup" data-i18n="c_del_group">Delete group</button>
+          <span class="scanmeta" id="cfgm_count"></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row" style="margin-bottom:10px">
+          <h2 style="margin:0" data-i18n="cfgm_list_t">Configs</h2>
+          <span style="flex:1"></span>
+          <button class="act btn-ghost" id="cfgm_selall" data-i18n="c_select_all">Select all</button>
+          <button class="act btn-ghost" id="cfgm_testall" data-i18n="c_test_group">Ping test group</button>
+          <button class="act btn-ghost" id="cfgm_copyall" data-i18n="c_copy_group">Copy group</button>
+        </div>
+        <div id="cfgm_list" class="cfglist"></div>
+      </div>
+
+      <div class="card">
+        <h2 data-i18n="cfgm_add_t">Add configs</h2>
+        <div id="cfgm_drop" class="dropzone">
+          <textarea id="cfgm_paste" style="min-height:80px;border:none;background:transparent;width:100%" placeholder="vless:// vmess:// trojan:// ss://  — paste one per line, or drag a .txt of links here"></textarea>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <button class="act btn-go" id="cfgm_addpaste" data-i18n="c_add_to_group">Add to group</button>
+          <input id="cfgm_suburl" placeholder="https://your-sub-url / edgetunnel /KEY" style="flex:1;min-width:200px">
+          <button class="act btn-alt" id="cfgm_subimport" data-i18n="c_import_sub">Import subscription</button>
+          <button class="act btn-alt" id="cfgm_sni" data-i18n="c_load_sni">Load SNI Configs</button>
+          <button class="act btn-alt" id="cfgm_update" data-i18n="c_get_latest">Get latest (new group)</button>
+        </div>
+      </div>
+    </section>
+
     <!-- SNI TUNNEL (PROXY) -->
     <section class="panel" data-panel="proxy">
       <h1 data-i18n="proxy_h1">SNI Tunnel</h1>
@@ -222,7 +414,7 @@
         <h2 data-i18n="proxy_cfg">Configuration</h2>
         <div class="grid g3">
           <label><span class="lbl" data-i18n="f_listen_host">Listen host</span><input id="p_lh" value="127.0.0.1"></label>
-          <label><span class="lbl" data-i18n="f_listen_port">Listen port</span><input id="p_lp" value="10808"></label>
+          <label><span class="lbl" data-i18n="f_listen_port">Listen port</span><input id="p_lp" value="40443"></label>
           <label><span class="lbl" data-i18n="f_mode">Mode</span>
             <select id="p_mode"><option value="transparent" data-i18n="mode_t">transparent — terminate TLS</option><option value="passthrough" data-i18n="mode_p">passthrough — raw TCP</option><option value="cdn_fronting" data-i18n="mode_c">CDN fronting — front SNI + Host</option></select>
           </label>
@@ -240,6 +432,17 @@
           <span class="pill off" id="p_pill"><span class="dot"></span><span data-i18n="c_stopped">stopped</span></span>
         </div>
         <div id="p_portout"></div>
+      </div>
+
+      <div class="card">
+        <div class="row" style="margin-bottom:8px">
+          <h2 style="margin:0" data-i18n="saved_sni_t">Saved SNI list</h2>
+          <span class="scanmeta" id="saved_sni_meta"></span>
+          <span style="flex:1"></span>
+          <button class="act btn-ghost" id="saved_sni_clear" data-i18n="c_clear">Clear</button>
+        </div>
+        <p class="hint" data-i18n="saved_sni_h">Front SNIs you saved from the Site Scanner. Connect uses one as the spoofed SNI and starts the tunnel.</p>
+        <div id="saved_sni_list" class="cardscroll"></div>
       </div>
 
       <div class="card">
@@ -267,6 +470,26 @@
         <p class="hint" data-i18n="proxy_relay_h">Connect to the target above, complete a TLS handshake with the fake SNI, then send a HEAD request and time each stage.</p>
         <div class="row"><button class="act btn-alt" id="pr_go" data-i18n="c_run_relay">Run relay test</button></div>
         <div id="pr_out"></div>
+      </div>
+
+      <div class="card">
+        <h2 data-i18n="xray_cfg">Test setup (single config)</h2>
+        <p class="hint" data-i18n="xray_cfg_h">Paste a config and make a real HTTPS request through it — directly, or routed via this SNI Tunnel — to confirm your setup works. Needs the xray binary (set it in XRay Core).</p>
+        <label><span class="lbl" data-i18n="f_uri">Share link (vless / vmess / trojan / ss)</span>
+          <textarea id="x_uri" style="min-height:70px" placeholder="vless://uuid@host:443?security=tls&sni=...&type=ws&path=/"></textarea>
+        </label>
+        <label class="checkrow"><input type="checkbox" id="x_direct" checked><span data-i18n="f_direct">Direct — connect straight to the config server (uncheck to route through this SNI Tunnel)</span></label>
+        <div class="grid g3" style="margin-top:14px">
+          <label><span class="lbl" data-i18n="f_proxy_host">Local proxy host</span><input id="x_ph" value="127.0.0.1"></label>
+          <label><span class="lbl" data-i18n="f_proxy_port">Local proxy port</span><input id="x_pp" value="40443"></label>
+          <label><span class="lbl" data-i18n="f_socks_in">Xray SOCKS port</span><input id="x_sp" value="10809"></label>
+        </div>
+        <div class="grid g2" style="margin-top:14px">
+          <label><span class="lbl" data-i18n="f_test_url">Test URL</span><input id="x_url" value="http://cp.cloudflare.com/generate_204"></label>
+          <label><span class="lbl" data-i18n="f_timeout">Timeout (s)</span><input id="x_to" value="12"></label>
+        </div>
+        <div class="row"><button class="act btn-go" id="x_go" data-i18n="c_run_test">Run test</button><span class="scanmeta" id="x_meta"></span></div>
+        <div id="x_out"></div>
       </div>
     </section>
 
@@ -315,66 +538,84 @@
       </div>
     </section>
 
-    <!-- XRAY TEST -->
+    <!-- XRAY CORE -->
     <section class="panel" data-panel="xray">
-      <h1 data-i18n="xray_h1">Xray Connection Test</h1>
-      <p class="sub" data-i18n="xray_sub">Paste a vless:// or vmess:// link and test a real HTTPS request through it — routed via the SNI-spoofing proxy running on this system. Requires an xray or v2ray binary in PATH.</p>
+      <h1 data-i18n="xray_h1">XRay Core</h1>
+      <p class="sub" data-i18n="xray_sub">Detect or download the proxy engines, then run the config you connected in the Library on this whole device — as a local SOCKS5 proxy (xray) or system-wide TUN VPN (sing-box). Connect a config from the Library, pick an engine, and start.</p>
+
       <div class="card">
-        <h2 data-i18n="xray_bin">Xray binary</h2>
-        <label><span class="lbl" data-i18n="f_xray_path">Path to xray / v2ray (leave empty to auto-detect)</span><input id="x_bin" placeholder="C:\\path\\to\\xray.exe"></label>
+        <h2 data-i18n="xray_bin">Engines</h2>
+        <label><span class="lbl" data-i18n="f_xray_path">Path to xray (leave empty to auto-detect)</span><input id="x_bin" placeholder="C:\\path\\to\\xray.exe"></label>
         <div class="row">
-          <button class="act btn-ghost" id="x_detect" data-i18n="c_detect">Detect</button>
+          <button class="act btn-ghost" id="x_detect" data-i18n="c_detect">Detect xray</button>
           <button class="act btn-alt" id="x_download" data-i18n="c_download_xray">Download xray</button>
           <span class="scanmeta" id="x_binmeta"></span>
         </div>
-      </div>
-
-      <div class="card">
-        <h2 data-i18n="xray_cfg">Single test</h2>
-        <label><span class="lbl" data-i18n="f_uri">Share link (vless / vmess)</span>
-          <textarea id="x_uri" style="min-height:70px" placeholder="vless://uuid@host:443?security=tls&sni=...&type=ws&path=/"></textarea>
-        </label>
-        <label class="checkrow"><input type="checkbox" id="x_direct" checked><span data-i18n="f_direct">Direct — connect straight to the config server (uncheck to route through the local SNI proxy)</span></label>
-        <div class="grid g3" style="margin-top:14px">
-          <label><span class="lbl" data-i18n="f_proxy_host">Local proxy host</span><input id="x_ph" value="127.0.0.1"></label>
-          <label><span class="lbl" data-i18n="f_proxy_port">Local proxy port</span><input id="x_pp" value="10808"></label>
-          <label><span class="lbl" data-i18n="f_socks_in">Xray SOCKS port</span><input id="x_sp" value="10809"></label>
-        </div>
-        <div class="grid g2" style="margin-top:14px">
-          <label><span class="lbl" data-i18n="f_test_url">Test URL</span><input id="x_url" value="https://www.google.com/generate_204"></label>
-          <label><span class="lbl" data-i18n="f_timeout">Timeout (s)</span><input id="x_to" value="12"></label>
-        </div>
-        <div class="infobox" data-i18n="xray_note">Tip: with Direct off, start the SNI Tunnel proxy first (PASSTHROUGH, same host/port). Xray routes through it so the test reflects your spoofed-SNI path.</div>
-        <div class="row"><button class="act btn-go" id="x_go" data-i18n="c_run_test">Run test</button><span class="scanmeta" id="x_meta"></span></div>
-        <div id="x_out"></div>
-      </div>
-
-      <div class="card">
-        <h2 data-i18n="xray_mass">Mass URI check</h2>
-        <p class="hint" data-i18n="xray_mass_h">Paste many configs (one per line). Each is measured for ping (TCP) and relay delay (TLS) to its own server — ranked fastest first. No xray needed.</p>
-        <label><textarea id="x_uris" style="min-height:120px" placeholder="vless://...&#10;vmess://...&#10;vless://..."></textarea></label>
-        <div class="grid g2" style="margin-top:14px">
-          <label><span class="lbl" data-i18n="f_timeout">Timeout (s)</span><input id="x_mto" value="6"></label>
-        </div>
-        <div class="row"><button class="act btn-go" id="x_massgo" data-i18n="c_test_all">Test all</button><span class="scanmeta" id="x_massmeta"></span></div>
-        <div id="x_massout"></div>
-      </div>
-
-      <div class="card">
-        <h2 data-i18n="xray_run">Run xray on this device</h2>
-        <p class="hint" data-i18n="xray_run_h">Start xray as a local SOCKS5 proxy your whole device can use. Pick a config; bind to 0.0.0.0 to share on the LAN.</p>
-        <label><span class="lbl" data-i18n="f_uri">Config URI</span><textarea id="xr_uri" style="min-height:60px" placeholder="vless://... or vmess://..."></textarea></label>
-        <div class="grid g3" style="margin-top:14px">
-          <label><span class="lbl" data-i18n="f_socks_port">SOCKS5 port</span><input id="xr_sp" value="10808"></label>
-          <label><span class="lbl" data-i18n="f_listen_host">Listen host</span><input id="xr_lh" value="127.0.0.1"></label>
-        </div>
-        <label class="checkrow"><input type="checkbox" id="xr_direct" checked><span data-i18n="f_direct_run">Direct (uncheck to route through the local SNI proxy at host/port above)</span></label>
+        <label style="margin-top:14px"><span class="lbl" data-i18n="f_singbox_path">Path to sing-box (for TUN mode — leave empty to auto-detect)</span><input id="sb_bin" placeholder="C:\\path\\to\\sing-box.exe"></label>
         <div class="row">
-          <button class="act btn-go" id="xr_start" data-i18n="c_start_xray">Start xray</button>
+          <button class="act btn-ghost" id="sb_detect" data-i18n="c_detect_singbox">Detect sing-box</button>
+          <button class="act btn-alt" id="sb_download" data-i18n="c_download_singbox">Download sing-box</button>
+          <span class="scanmeta" id="sb_binmeta"></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 data-i18n="xray_run">Run on this device</h2>
+        <div class="infobox" id="xr_active" data-i18n="xray_run_none">No config connected yet — go to the Library and click ▶ Connect on a config. It will turn green and become the active config used here.</div>
+        <div class="grid g2" style="margin-top:14px">
+          <label><span class="lbl" data-i18n="f_engine">Engine</span>
+            <select id="xr_engine">
+              <option value="xray" data-i18n="opt_xray_socks">xray — local SOCKS5 proxy</option>
+              <option value="singbox" data-i18n="opt_singbox_tun">sing-box — system-wide TUN VPN</option>
+            </select>
+          </label>
+          <label><span class="lbl" data-i18n="f_socks_port">SOCKS5 port (xray / sing-box SOCKS)</span><input id="xr_sp" value="40808"></label>
+        </div>
+        <label class="checkrow" id="xr_tunrow" style="display:none"><input type="checkbox" id="xr_tun" checked><span data-i18n="f_tun_mode">TUN mode — route ALL device traffic through the config (needs administrator / root)</span></label>
+        <div class="grid g2" style="margin-top:14px" id="xr_xrayopts">
+          <label><span class="lbl" data-i18n="f_listen_host">Listen host (xray SOCKS)</span><input id="xr_lh" value="127.0.0.1"></label>
+        </div>
+        <div class="warnbox" id="xr_tunwarn" style="display:none" data-i18n="xray_tun_warn">TUN mode uses sing-box to create a virtual network adapter and reroute your system. You must run V2RayEz as administrator (Windows) or with sudo (macOS/Linux). On Windows, sing-box fetches Wintun automatically on first run.</div>
+        <div class="row">
+          <button class="act btn-go" id="xr_start" data-i18n="c_start">Start</button>
           <button class="act btn-stop" id="xr_stop" disabled data-i18n="c_stop">Stop</button>
           <span class="pill off" id="xr_pill"><span class="dot"></span><span data-i18n="c_stopped">stopped</span></span>
         </div>
         <div id="xr_out"></div>
+      </div>
+
+      <div class="card">
+        <h2 data-i18n="cfg_t">App configuration</h2>
+        <p class="hint" data-i18n="cfg_h2">Everything across all tabs auto-saves to the app's running folder and restores on launch. You can also save/load an explicit file here.</p>
+        <label class="checkrow"><input type="checkbox" id="cfg_auto" checked><span data-i18n="f_autosave">Auto-save everything (restore on next launch)</span></label>
+        <label style="margin-top:12px"><span class="lbl" data-i18n="f_cfg_path">Config path (empty = running folder)</span><input id="cfg_path" placeholder="v2rayez-config.json"></label>
+        <div class="row" style="margin-top:14px">
+          <button class="act btn-go" id="cfg_save" data-i18n="c_save_cfg">Save config</button>
+          <button class="act btn-alt" id="cfg_load" data-i18n="c_load_cfg">Load config</button>
+          <span class="scanmeta" id="cfg_meta"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- MASS URI CHECK (scanner) -->
+    <section class="panel" data-panel="massuri">
+      <h1 data-i18n="xray_mass">Mass URI Check <span class="tag" style="font-size:10px;color:var(--accent2);border:1px solid rgba(90,169,255,.42);border-radius:5px;padding:2px 7px;vertical-align:middle;font-family:var(--mono);letter-spacing:.12em" data-i18n="badge_new">NEW</span></h1>
+      <p class="sub" data-i18n="xray_mass_h">Paste many configs — vless / vmess / trojan / shadowsocks, one per line. Each is run through xray and a real request is made; ping (to the server) and relay delay (through the tunnel) are ranked fastest first. Needs the xray binary (set it in XRay Core).</p>
+      <div class="card">
+        <label><textarea id="x_uris" style="min-height:120px" placeholder="vless://...&#10;vmess://...&#10;trojan://...&#10;ss://..."></textarea></label>
+        <div class="grid g2" style="margin-top:14px">
+          <label><span class="lbl" data-i18n="f_test_host">Test host / URL</span><input id="x_mtesturl" value="http://cp.cloudflare.com/generate_204" placeholder="https://instagram.com"></label>
+          <label><span class="lbl" data-i18n="f_timeout">Timeout per config (s)</span><input id="x_mto" value="10"></label>
+        </div>
+        <label class="checkrow"><input type="checkbox" id="x_mtunnel"><span data-i18n="f_mass_tunnel">Test through the SNI Tunnel — auto-detects the running tunnel's port (leave off to connect directly)</span></label>
+        <label class="checkrow"><input type="checkbox" id="x_mspeeds"><span data-i18n="f_mass_speeds">Measure download &amp; upload through each config (slower — uses speed.cloudflare.com)</span></label>
+        <div class="grid g3" style="margin-top:14px">
+          <label><span class="lbl" data-i18n="f_down_bytes">Download bytes</span><input id="x_mdb" value="2000000"></label>
+          <label><span class="lbl" data-i18n="f_up_bytes">Upload bytes</span><input id="x_mub" value="1000000"></label>
+        </div>
+        <div class="row"><button class="act btn-go" id="x_massgo" data-i18n="c_test_all">Test all</button><button class="act btn-alt" id="x_update" data-i18n="c_get_latest">Get latest configs</button><span class="scanmeta" id="x_massmeta"></span></div>
+        <div class="scanprog indet" id="x_mass_prog" style="display:none"><div class="scanprog-fill"></div></div>
+        <div id="x_massout"></div>
       </div>
     </section>
 
@@ -423,6 +664,7 @@
           <button class="act btn-ghost" id="ms_def" data-i18n="c_load_captcha">Load captcha list</button>
           <span class="scanmeta" id="ms_meta"></span>
         </div>
+        <div class="scanprog indet" id="ms_prog" style="display:none"><div class="scanprog-fill"></div></div>
         <div id="ms_out"></div>
       </div>
     </section>
@@ -446,6 +688,7 @@
           <button class="act btn-ghost" id="cf_def" data-i18n="c_load_defaults">Load defaults</button>
           <span class="scanmeta" id="cf_meta"></span>
         </div>
+        <div class="scanprog indet" id="cf_prog" style="display:none"><div class="scanprog-fill"></div></div>
         <div id="cf_out"></div>
       </div>
     </section>
@@ -470,22 +713,115 @@
           <button class="act btn-alt" id="ce_best" disabled data-i18n="ce_connect_best">Connect best</button>
           <span class="scanmeta" id="ce_meta"></span>
         </div>
+        <div class="scanprog indet" id="ce_prog" style="display:none"><div class="scanprog-fill"></div></div>
         <div id="ce_out"></div>
       </div>
     </section>
 
-    <!-- URI PARSER -->
-    <section class="panel" data-panel="uri">
-      <h1 data-i18n="uri_h1">URI Parser</h1>
-      <p class="sub" data-i18n="uri_sub">Decode vless:// and vmess:// share links into their host, port, UUID, SNI, transport and TLS fields — then send them straight to the SNI Tunnel.</p>
+    <!-- CDN CONFIGS -->
+    <section class="panel" data-panel="cdnconfigs">
+      <h1 data-i18n="cc_h1">CDN Configs Builder <span class="tag" style="font-size:10px;color:var(--accent2);border:1px solid rgba(90,169,255,.42);border-radius:5px;padding:2px 7px;vertical-align:middle;font-family:var(--mono);letter-spacing:.12em" data-i18n="badge_new">NEW</span></h1>
+      <p class="sub" data-i18n="cc_sub">Paste one Cloudflare-backed xray share link. The app ping-ranks hundreds of CF edge IPs against that config's SNI (phase 1), then speed-tests the fastest ones through xray for real download &amp; upload (phase 2). Best edges appear in real-time as cards; stop any time. The savebox below holds up to 50 ranked share links rewritten to point at the best edges.</p>
       <div class="card">
-        <h2 data-i18n="uri_link">Share link</h2>
-        <label><textarea id="u_uri" placeholder="vless://uuid@host:443?security=tls&sni=...&type=ws&path=/  -or-  vmess://base64..."></textarea></label>
-        <div class="row">
-          <button class="act btn-go" id="u_go" data-i18n="c_parse">Parse</button>
-          <button class="act btn-alt" id="u_send" disabled data-i18n="c_send_tunnel">Send to SNI Tunnel</button>
+        <h2 data-i18n="cc_cfg">Base config &amp; scan</h2>
+        <label><span class="lbl" data-i18n="f_uri">Share link (vless / vmess / trojan / ss)</span>
+          <textarea id="cc_uri" style="min-height:70px" placeholder="vless://uuid@host:443?security=tls&sni=...&type=ws&path=/"></textarea>
+        </label>
+        <div class="grid g3" style="margin-top:14px">
+          <label><span class="lbl" data-i18n="f_per_range">IPs per range</span><input id="cc_per" value="200"></label>
+          <label><span class="lbl" data-i18n="f_ports">Ports to check (comma-separated)</span><input id="cc_ports" value="443"></label>
+          <label><span class="lbl" data-i18n="f_top_speed">Phase 2: top-N for speed test</span><input id="cc_top" value="20"></label>
+          <label><span class="lbl" data-i18n="f_final_count">Savebox size (max)</span><input id="cc_final" value="50"></label>
+          <label><span class="lbl" data-i18n="f_ping_conc">Phase 1 threads (ping)</span><input id="cc_pingconc" value="64"></label>
+          <label><span class="lbl" data-i18n="f_speed_conc">Phase 2 threads (speed)</span><input id="cc_conc" value="4"></label>
+          <label><span class="lbl" data-i18n="f_ping_to">Phase 1 timeout (s)</span><input id="cc_pto" value="4"></label>
+          <label><span class="lbl" data-i18n="f_down_bytes">Download bytes per IP</span><input id="cc_db" value="2000000"></label>
+          <label><span class="lbl" data-i18n="f_up_bytes">Upload bytes per IP</span><input id="cc_ub" value="1000000"></label>
         </div>
-        <div id="u_out"></div>
+        <label class="checkrow" style="margin-top:14px"><input type="checkbox" id="cc_full"><span data-i18n="f_full_range">Full range — ignore the per-range cap (every IP in every CIDR; can be huge)</span></label>
+        <label class="checkrow"><input type="checkbox" id="cc_cfports"><span data-i18n="f_cfports">Cloudflare HTTPS ports preset (443, 2053, 2083, 2087, 2096, 8443)</span></label>
+        <label style="margin-top:14px"><span class="lbl" data-i18n="f_ranges">Edge IPs — CIDR or IP, one per line (empty = built-in Cloudflare)</span><textarea id="cc_ranges" style="min-height:90px" placeholder="(leave empty to use the built-in Cloudflare ranges)"></textarea></label>
+        <div class="row">
+          <button class="act btn-go" id="cc_go" data-i18n="c_run_scan">Run scan</button>
+          <button class="act btn-alt" id="cc_pause" disabled data-i18n="c_pause">Pause</button>
+          <button class="act btn-stop" id="cc_stop" disabled data-i18n="c_stop_scan">Stop</button>
+          <span class="scanmeta" id="cc_meta"></span>
+          <span class="scanmeta" id="cc_elapsed" style="margin-inline-start:auto;font-family:var(--mono);color:var(--dim)"></span>
+        </div>
+        <div class="progwrap" style="margin-top:14px">
+          <div class="progbar" id="cc_progbar" style="background:rgba(8,10,15,.6);border:1px solid var(--border);border-radius:10px;height:22px;overflow:hidden;position:relative">
+            <div id="cc_progfill" style="height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent-deep));transition:width .25s ease;position:relative"></div>
+            <div id="cc_proglabel" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11.5px;color:var(--bright);text-shadow:0 1px 0 rgba(0,0,0,.5);letter-spacing:.06em;font-weight:600" data-i18n="c_idle">idle</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 data-i18n="cc_top">🏆 Live top edges</h2>
+        <div id="cc_cards"></div>
+        <div id="cc_out" style="margin-top:14px"></div>
+      </div>
+
+      <div class="card">
+        <h2 data-i18n="cc_save_t">Savebox — best configs</h2>
+        <p class="hint" data-i18n="cc_save_h">After the scan, the top configs (rewritten to point at the best edge IPs) appear here, ranked by score. Copy them into your client.</p>
+        <textarea id="cc_save" style="min-height:160px" readonly placeholder=""></textarea>
+        <div class="row" style="margin-top:10px">
+          <button class="act btn-alt" id="cc_copy" data-i18n="c_copy">Copy</button>
+          <span class="scanmeta" id="cc_copymeta"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- SITE SCANNER -->
+    <section class="panel" data-panel="sites">
+      <h1 data-i18n="sites_h1">Site Scanner <span class="tag" style="font-size:10px;color:var(--accent2);border:1px solid rgba(90,169,255,.42);border-radius:5px;padding:2px 7px;vertical-align:middle;font-family:var(--mono);letter-spacing:.12em" data-i18n="badge_new">NEW</span></h1>
+      <p class="sub" data-i18n="sites_sub">Paste domains (or load the captcha list) to find which are reachable, their resolved IP, latency, and whether they sit on Cloudflare's CDN — handy for picking front SNIs and clean-IP candidates.</p>
+      <div class="card">
+        <h2 data-i18n="sites_in_t">Domains</h2>
+        <label><textarea id="sites_in" style="min-height:120px" placeholder="www.cloudflare.com&#10;hcaptcha.com&#10;www.google.com"></textarea></label>
+        <div class="grid g2" style="margin-top:12px">
+          <label><span class="lbl" data-i18n="f_port">Port</span><input id="sites_port" value="443"></label>
+          <label><span class="lbl" data-i18n="f_timeout">Timeout (s)</span><input id="sites_to" value="6"></label>
+        </div>
+        <div class="row">
+          <button class="act btn-go" id="sites_go" data-i18n="c_scan">Scan</button>
+          <button class="act btn-stop" id="sites_stop" disabled data-i18n="c_stop">Stop</button>
+          <button class="act btn-ghost" id="sites_captcha" data-i18n="c_load_captcha">Load captcha list</button>
+          <button class="act btn-ghost" id="sites_onlycf" data-i18n="c_copy_cf">Copy Cloudflare IPs</button>
+          <span class="scanmeta" id="sites_meta"></span>
+        </div>
+        <div class="scanprog" id="sites_progbar" style="display:none"><div class="scanprog-fill" id="sites_progfill"></div></div>
+        <div id="sites_cards" class="cardscroll" style="margin-top:14px"></div>
+      </div>
+    </section>
+
+    <!-- CLOUDFLARE WORKER MAKER -->
+    <section class="panel" data-panel="cfworker">
+      <h1 data-i18n="cfw_h1">Cloudflare Worker <span class="tag" style="font-size:10px;color:var(--accent2);border:1px solid rgba(90,169,255,.42);border-radius:5px;padding:2px 7px;vertical-align:middle;font-family:var(--mono);letter-spacing:.12em" data-i18n="badge_new">NEW</span></h1>
+      <p class="sub" data-i18n="cfw_sub">Spin up your own free VLESS proxy on a Cloudflare Worker in a couple of minutes. Generate a UUID, follow the steps, then build matching client configs in the Edge Tunnel tab.</p>
+      <div class="card">
+        <h2 data-i18n="cfw_step_t">Step-by-step</h2>
+        <ol class="steps">
+          <li data-i18n="cfw_s1">Sign in at dash.cloudflare.com → Compute → Workers &amp; Pages → Create application → Worker → Deploy.</li>
+          <li data-i18n="cfw_s2">Click “Edit code”, delete the default code, and paste the edgetunnel _worker.js (github.com/cmliu/edgetunnel) — or any VLESS worker you trust.</li>
+          <li data-i18n="cfw_s3">Settings → Variables: add UUID = the value below. (Optional: PROXYIP, ADMIN for the panel.) Bind a KV namespace named KV. Save &amp; Deploy.</li>
+          <li data-i18n="cfw_s4">Triggers → add a custom domain (e.g. vless.yourdomain.com) so a clean SNI is available.</li>
+          <li data-i18n="cfw_s5">Go to the Edge Tunnel tab, enter your worker domain + this UUID, and generate ready-to-use configs.</li>
+        </ol>
+      </div>
+      <div class="card">
+        <h2 data-i18n="cfw_env_t">Your values</h2>
+        <div class="grid g2">
+          <label><span class="lbl" data-i18n="f_edge_uuid">UUID</span><input id="cfw_uuid" placeholder="click Generate"></label>
+          <label><span class="lbl" data-i18n="f_cfw_proxyip">PROXYIP (optional)</span><input id="cfw_proxyip" placeholder="proxyip.cmliussss.net"></label>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <button class="act btn-go" id="cfw_gen" data-i18n="c_new_uuid">Generate UUID</button>
+          <button class="act btn-alt" id="cfw_toedge" data-i18n="c_copy_uuid">Copy UUID</button>
+          <span class="scanmeta" id="cfw_meta"></span>
+        </div>
+        <div class="warnbox" style="margin-top:14px" data-i18n="cfw_warn">This panel only generates values and instructions — it never logs into or changes your Cloudflare account. Deploy and run the worker yourself, in line with Cloudflare's terms and your local laws.</div>
       </div>
     </section>
 
@@ -543,9 +879,9 @@
     <section class="panel" data-panel="about">
       <h1 data-i18n="about_h1">About</h1>
       <div class="hero">
-        <span class="ver">EzSNI · v3.4</span>
-        <h1 data-i18n="about_app">SNI / SPlus Tunnel Suite</h1>
-        <p data-i18n="about_tagline">An all-in-one DPI-bypass &amp; SNI-spoofing toolkit — proxy, scanners, Xray tester, SPlus LiveKit tunnel, and WinDivert management, in one fast offline Go app.</p>
+        <span class="ver">V2RayEz · v4.1</span>
+        <h1 data-i18n="about_app">V2RayEz — DPI Bypass &amp; CDN Toolkit</h1>
+        <p data-i18n="about_tagline">An all-in-one panel for beating DPI: SNI tunnel, Cloudflare edge &amp; config scanners that build ranked working configs, an xray client you can run on-device, plus Psiphon and SPlus tunnels — one fast, offline Go app you can open from any device on your network.</p>
         <div class="credit">
           <div class="badge">
             <div class="av">MD</div>
@@ -560,13 +896,24 @@
       <div class="card">
         <h2 data-i18n="about_what_t">What it does</h2>
         <div class="feat">
-          <div class="f"><div class="ti"><span class="ic">≋</span><span data-i18n="about_f1_t">SNI Tunnel</span></div><div class="de" data-i18n="about_f1_d">Dual-mode local proxy: transparent (terminates TLS with a fake SNI) or passthrough (raw TCP for Xray). With relay test, port check and LAN sharing.</div></div>
-          <div class="f"><div class="ti"><span class="ic">⇄</span><span data-i18n="about_f2_t">SPlus Tunnel</span></div><div class="de" data-i18n="about_f2_d">SOCKS5 over a SoroushPlus voice call's LiveKit data channel — a port of theermia/SPlusTunnel.</div></div>
-          <div class="f"><div class="ti"><span class="ic">✓</span><span data-i18n="about_f3_t">Xray Tester</span></div><div class="de" data-i18n="about_f3_d">Paste a vless/vmess link and measure a real HTTPS request through your spoofed-SNI proxy via a local xray instance.</div></div>
-          <div class="f"><div class="ti"><span class="ic">◎</span><span data-i18n="about_f4_t">Scanners</span></div><div class="de" data-i18n="about_f4_d">Single SNI check, relay timing, mass SNI scan (with a built-in captcha-domain list), and a Cloudflare IP sweeper.</div></div>
-          <div class="f"><div class="ti"><span class="ic">⌁</span><span data-i18n="about_f5_t">URI Parser</span></div><div class="de" data-i18n="about_f5_d">Decode vless/vmess share links and push the result straight into the SNI Tunnel.</div></div>
-          <div class="f"><div class="ti"><span class="ic">⊞</span><span data-i18n="about_f6_t">WinDivert</span></div><div class="de" data-i18n="about_f6_d">One-click install / start / remove of the WinDivert kernel driver service on Windows.</div></div>
+          <div class="f"><div class="ti"><span class="ic">≋</span><span data-i18n="about_f1_t">SNI Tunnel</span></div><div class="de" data-i18n="about_f1_d">Local proxy with transparent / passthrough / CDN-fronting modes, multi-SNI rotation, DPI desync (fragmentation, fake ClientHello, uTLS), relay test, port check and LAN sharing.</div></div>
+          <div class="f"><div class="ti"><span class="ic">✦</span><span data-i18n="about_f2_t">CDN Configs Builder</span></div><div class="de" data-i18n="about_f2_d">Give one Cloudflare-backed config; it ping-ranks hundreds of edge IPs and ports, speed-tests the best through xray, and emits ranked ready-to-use configs named “Name | LOC | ping | @EzAccess1”.</div></div>
+          <div class="f"><div class="ti"><span class="ic">✓</span><span data-i18n="about_f3_t">Xray client</span></div><div class="de" data-i18n="about_f3_d">Detect or download xray, single &amp; mass URI testing through the SNI Tunnel with download/upload speeds, and run a config on this device as a SOCKS5 proxy — controllable from the header on every tab.</div></div>
+          <div class="f"><div class="ti"><span class="ic">◎</span><span data-i18n="about_f4_t">Scanners</span></div><div class="de" data-i18n="about_f4_d">Single SNI check (with resolved IP), relay timing, mass SNI scan, Cloudflare IP sweeper, and CDN edge fronting test — all with live results.</div></div>
+          <div class="f"><div class="ti"><span class="ic">⇄</span><span data-i18n="about_f5_t">Psiphon &amp; SPlus</span></div><div class="de" data-i18n="about_f5_d">Optional device tunnels: Psiphon (local SOCKS5/HTTP) and an SPlus SOCKS-over-LiveKit channel, both chainable through this app's proxies.</div></div>
+          <div class="f"><div class="ti"><span class="ic">⊞</span><span data-i18n="about_f6_t">WinDivert</span></div><div class="de" data-i18n="about_f6_d">One-click install / start / remove of the WinDivert kernel driver service on Windows for system-wide packet interception.</div></div>
+          <div class="f"><div class="ti"><span class="ic">⚙</span><span data-i18n="about_f7_t">sing-box TUN</span></div><div class="de" data-i18n="about_f7_d">Detect or download sing-box and run any connected config as a system-wide TUN VPN — all device traffic routed through it (needs admin / root).</div></div>
+          <div class="f"><div class="ti"><span class="ic">☷</span><span data-i18n="about_f8_t">Config Library</span></div><div class="de" data-i18n="about_f8_d">Groups, subscriptions, SNI/Spoof config lists, QR sharing, right-click menu, multi-select with bulk relay/speed tests — all auto-saved across restarts.</div></div>
         </div>
+      </div>
+
+      <div class="card">
+        <h2 data-i18n="about_updates_t">What's new</h2>
+        <ul class="changelog">
+          <li><b>v4.1</b> <span data-i18n="about_u_41">— sing-box system-wide TUN mode; Start/Stop + TUN toggle in the header bar; Site Scanner rebuilt with live progress, cards and Connect/Save; Saved SNI list; every scanner now uses cards + progress bars; config-library right-click menu, shift-select and bulk relay/speed tests; Load SNI Configs; auto-save everything; mobile layout; Edge Tunnel removed.</span></li>
+          <li><b>v4.0</b> <span data-i18n="about_u_40">— Renamed to V2RayEz; XRay Core tab; Config Library with groups, subscriptions, QR &amp; drag-drop; native app window; LAN access on 0.0.0.0:8765; Cloudflare Worker maker; CDN Configs builder; annotated config names.</span></li>
+          <li><b>v3.x</b> <span data-i18n="about_u_3x">— SNI tunnel with DPI desync, scanners, xray testing, Psiphon &amp; SPlus tunnels, WinDivert management.</span></li>
+        </ul>
       </div>
 
       <div class="card">
@@ -606,14 +953,47 @@ const $ = id => document.getElementById(id);
 /* ===================== i18n ===================== */
 const I18N = {
   en:{
-    hdr_edition:"By MacanDev", hdr_proxy:"Proxy", hdr_splus:"SPlus", badge_new:"NEW",
-    nav_proxy:"SNI Tunnel", nav_splus:"SPlus Tunnel", nav_psiphon:"Psiphon", nav_xray:"Xray Test", nav_sniscan:"SNI Scan",
-    nav_mass:"Mass SNI Scan", nav_cf:"IP Scanner", nav_cdnedge:"CDN Edge Test", nav_uri:"URI Parser", nav_windivert:"WinDivert", nav_about:"About",
+    hdr_edition:"By MacanDev · @EzAccess1", hdr_proxy:"SNI Tunnel", hdr_splus:"SPlus", hdr_xray:"xray", badge_new:"NEW",
+    sec_tunnels:"Tunnels", sec_scanners:"Scanners", sec_tools:"Tools", sec_library:"Library",
+    nav_configs:"Configs", nav_edge:"Edge Tunnel", nav_sites:"Site Scanner", nav_cfworker:"CF Worker",
+    sites_h1:"Site Scanner", sites_sub:"Paste domains (or load the captcha list) to find which are reachable, their resolved IP, latency, and whether they sit on Cloudflare's CDN — handy for picking front SNIs and clean-IP candidates.",
+    sites_in_t:"Domains", c_scan:"Scan", c_copy_cf:"Copy Cloudflare IPs", st_not_cf:"not CF",
+    cfw_h1:"Cloudflare Worker", cfw_sub:"Spin up your own free VLESS proxy on a Cloudflare Worker in a couple of minutes. Generate a UUID, follow the steps, then build matching client configs in the Edge Tunnel tab.",
+    cfw_step_t:"Step-by-step", cfw_env_t:"Your values", f_cfw_proxyip:"PROXYIP (optional)", c_to_edge:"Use in Edge Tunnel",
+    cfw_s1:"Sign in at dash.cloudflare.com → Compute → Workers & Pages → Create application → Worker → Deploy.",
+    cfw_s2:"Click “Edit code”, delete the default code, and paste the edgetunnel _worker.js (github.com/cmliu/edgetunnel) — or any VLESS worker you trust.",
+    cfw_s3:"Settings → Variables: add UUID = the value below. (Optional: PROXYIP, ADMIN for the panel.) Bind a KV namespace named KV. Save & Deploy.",
+    cfw_s4:"Triggers → add a custom domain (e.g. vless.yourdomain.com) so a clean SNI is available.",
+    cfw_s5:"Go to the Edge Tunnel tab, enter your worker domain + this UUID, and generate ready-to-use configs.",
+    cfw_warn:"This panel only generates values and instructions — it never logs into or changes your Cloudflare account. Deploy and run the worker yourself, in line with Cloudflare's terms and your local laws.",
+    cfgm_h1:"Config Library", cfgm_sub:"Organize your configs into groups, import subscriptions, drag-and-drop links, then test, share (QR / copy), and connect. Ctrl/⌘-click to multi-select; press Enter to connect the selected one. Everything is saved automatically.",
+    cfgm_add_t:"Add configs", cfgm_list_t:"Configs", cfgm_in_group:"in group", cfgm_empty:"No configs yet — paste, import a subscription, or drag links here.",
+    cfgm_group_name:"Group name:", cfgm_del_confirm:"Delete this group and its configs?",
+    c_add_group:"+ Group", c_rename_group:"Rename", c_del_group:"Delete group", c_add_to_group:"Add to group",
+    c_import_sub:"Import subscription", c_test_group:"Ping test group", c_copy_group:"Copy group",
+    c_edit:"Edit", c_delete:"Delete", c_close:"Close",
+    edge_h1:"Edge Tunnel", edge_sub:"Build VLESS-over-WebSocket client configs for a Cloudflare Worker / Pages edgetunnel deployment (cmliu/edgetunnel). Deploy the worker with your UUID, then generate ready-to-use configs here — point them at a clean Cloudflare IP while keeping your worker domain as SNI/Host.",
+    edge_gen_t:"Generate configs", edge_deploy_t:"How to deploy",
+    f_edge_host:"Worker / Pages domain (SNI & Host)", f_edge_uuid:"UUID", f_edge_addr:"Dial address (clean CF IP / domain — optional)",
+    f_edge_path:"WS path", f_edge_name:"Node name", f_edge_allports:"All Cloudflare TLS ports (443, 2053, 2083, 2087, 2096, 8443) — otherwise just 443",
+    c_generate:"Generate", c_new_uuid:"New UUID", c_send_lib:"Send to Library",
+    edge_d1:"Create a Cloudflare Worker (or Pages) and paste the edgetunnel _worker.js from github.com/cmliu/edgetunnel.",
+    edge_d2:"Add environment variable UUID = the UUID above (and optionally PROXYIP), then bind a KV namespace named KV.",
+    edge_d3:"Give the worker a custom domain and put it in “Worker domain” above.",
+    edge_d4:"Generate configs here, send them to the Library, then run the CDN Configs scanner to find the fastest clean edge IPs for them.",
+    edge_warn:"This tool only builds client links and never touches your Cloudflare account. Deploy and manage the worker yourself, per your local laws.",
+    cc_more_results:"More edges",
+    nav_proxy:"SNI Tunnel", nav_splus:"SPlus Tunnel", nav_psiphon:"Psiphon", nav_xray:"XRay Core", nav_massuri:"Mass URI", nav_sniscan:"SNI Scan", nav_cdnconfigs:"CDN Configs",
+    nav_mass:"Mass SNI Scan", nav_cf:"Clean IP Scanner", nav_cdnedge:"CDN Edge Test", nav_uri:"URI Parser", nav_windivert:"WinDivert", nav_about:"About",
     c_start_proxy:"Start proxy", c_stop:"Stop", c_check_port:"Check port", c_run_relay:"Run relay test",
     c_start_tunnel:"Start tunnel", c_run_test:"Run test", c_test:"Test", c_scan:"Scan", c_parse:"Parse",
     c_send_tunnel:"Send to SNI Tunnel", c_load_captcha:"Load captcha list", c_load_defaults:"Load defaults",
     c_install_wd:"Install & start", c_uninstall_wd:"Stop & remove", c_refresh:"Refresh",
     c_running:"running", c_stopped:"stopped", c_console:"Console", c_clear:"clear", c_live:"live",
+    c_saving:"saving…", c_loading:"loading…",
+    cfg_t:"App configuration", cfg_h:"Save every setting across all tabs to a file on this machine. It's restored automatically the next time you start the app — or load it manually here.",
+    c_save_cfg:"Save config", c_load_cfg:"Load config",
+    cfg_saved:"saved →", cfg_loaded:"config loaded", cfg_none:"no saved config yet", cfg_restored:"saved config restored",
     c_connecting:"connecting...", c_reconnecting:"reconnecting...",
     c_testing:"testing...", c_running_e:"running...", c_scanning:"scanning...",
     st_reachable:"REACHABLE", st_failed:"FAILED", st_ok:"OK", st_open:"OPEN", st_closed:"CLOSED",
@@ -643,17 +1023,42 @@ const I18N = {
     splus_st4:"Start the server side first, then the client. Each side needs its own token.",
     splus_socks_t:"Using the SOCKS5 proxy (client)",
     splus_socks_h:"Point apps at socks5h://<host>:<port> and route DNS through the proxy. Quick test:",
-    xray_h1:"Xray Connection Test",
+    xray_h1:"XRay Core",
     xray_sub:"Paste a vless:// or vmess:// link and test a real HTTPS request through it — routed via the SNI-spoofing proxy running on this system. Requires an xray or v2ray binary in PATH.",
     xray_cfg:"Test setup", f_uri:"Share link (vless / vmess)", f_proxy_host:"Local proxy host", f_proxy_port:"Local proxy port",
     f_socks_in:"Xray SOCKS port", f_test_url:"Test URL", f_timeout:"Timeout (s)",
     xray_note:"Tip: first start the SNI Tunnel proxy in PASSTHROUGH mode, with its listen port equal to the local proxy port here and its connect IP/port set to your real server. Xray routes through it, so the test reflects your spoofed-SNI path end to end. Heavy fragmentation delays can slow the handshake.",
     xray_bin:"Xray binary", f_xray_path:"Path to xray / v2ray (leave empty to auto-detect)", c_detect:"Detect", c_download_xray:"Download xray",
     x_notfound:"not found", x_downloading:"downloading…", f_direct:"Direct — connect straight to the config server (uncheck to route through the local SNI proxy)",
-    xray_mass:"Mass URI check", xray_mass_h:"Paste many configs (one per line). Each is measured for ping (TCP) and relay delay (TLS) to its own server — ranked fastest first. No xray needed.",
+    xray_mass:"Mass URI check", xray_mass_h:"Paste many configs — vless / vmess / trojan / shadowsocks, one per line. Each is run through xray and a real request is made to the test host; ping (to the server) and relay delay (through the tunnel) are ranked fastest first. Needs the xray binary set above.",
+    f_test_host:"Test host / URL (e.g. https://instagram.com)", f_mass_tunnel:"Test through the SNI Tunnel (uses the local proxy host/port from Single test) — leave off to connect directly",
     c_test_all:"Test all", th_config:"Config", th_relay:"Relay", c_use:"Use",
-    xray_run:"Run xray on this device", xray_run_h:"Start xray as a local SOCKS5 proxy your whole device can use. Pick a config; bind to 0.0.0.0 to share on the LAN.",
-    f_direct_run:"Direct (uncheck to route through the local SNI proxy at host/port above)", c_start_xray:"Start xray",
+    xray_run:"Run on this device", xray_run_h:"Start xray as a local SOCKS5 proxy your whole device can use. Pick a config; bind to 0.0.0.0 to share on the LAN.",
+    c_start:"Start", nav_massuri_x:"",
+    f_singbox_path:"Path to sing-box (for TUN mode — leave empty to auto-detect)", c_detect_singbox:"Detect sing-box", c_download_singbox:"Download sing-box",
+    xray_run_none:"No config connected yet — go to the Library and click ▶ Connect on a config. It will turn green and become the active config used here.",
+    xray_run_active:"Active config:", f_engine:"Engine", opt_xray_socks:"xray — local SOCKS5 proxy", opt_singbox_tun:"sing-box — system-wide TUN VPN",
+    f_tun_mode:"TUN mode — route ALL device traffic through the config (needs administrator / root)",
+    xray_tun_warn:"TUN mode uses sing-box to create a virtual network adapter and reroute your system. You must run V2RayEz as administrator (Windows) or with sudo (macOS/Linux). On Windows, sing-box fetches Wintun automatically on first run.",
+    xr_tun_on:"TUN active — all device traffic is routed through the config (sing-box v2rayez-tun)",
+    xray_cfg_h:"Paste a config and make a real HTTPS request through it — directly, or routed via this SNI Tunnel — to confirm your setup works. Needs the xray binary (set it in XRay Core).",
+    c_select_all:"Select all", cfgm_latest_grp:"Latest",
+    c_save:"Save", c_relay:"Relay", r_ping:"ping",
+    c_speedtest:"Speed test", c_share:"Share / QR", c_load_sni:"Load SNI Configs", cfgm_sni_grp:"SNI Spoof", c_copy_uuid:"Copy UUID",
+    cfgm_edit_t:"Edit config", ed_name:"Name", ed_address:"Address (host / IP)", ed_port:"Port", ed_uuid:"UUID", ed_password:"Password",
+    ed_method:"Cipher (method)", ed_encryption:"Encryption", ed_flow:"Flow", ed_network:"Network (transport)", ed_path:"Path / service",
+    ed_hosthdr:"Host header", ed_security:"Security", ed_sni:"SNI", ed_fp:"uTLS fingerprint", ed_alpn:"ALPN",
+    ed_unparsed:"This link couldn't be parsed into fields — edit the raw URI directly.",
+    hdr_tun:"TUN", f_autosave:"Auto-save everything (restore on next launch)", cfg_h2:"Everything across all tabs auto-saves to the app's running folder and restores on launch. You can also save/load an explicit file here.",
+    about_f7_t:"sing-box TUN", about_f7_d:"Detect or download sing-box and run any connected config as a system-wide TUN VPN — all device traffic routed through it (needs admin / root).",
+    about_f8_t:"Config Library", about_f8_d:"Groups, subscriptions, SNI/Spoof config lists, QR sharing, right-click menu, multi-select with bulk relay/speed tests — all auto-saved across restarts.",
+    about_updates_t:"What's new",
+    about_u_41:"— sing-box system-wide TUN mode; Start/Stop + TUN toggle in the header bar; Site Scanner rebuilt with live progress, cards and Connect/Save; Saved SNI list; every scanner now uses cards + progress bars; config-library right-click menu, shift-select and bulk relay/speed tests; Load SNI Configs; auto-save everything; mobile layout; Edge Tunnel removed.",
+    about_u_40:"— Renamed to V2RayEz; XRay Core tab; Config Library with groups, subscriptions, QR & drag-drop; native app window; LAN access on 0.0.0.0:8765; Cloudflare Worker maker; CDN Configs builder; annotated config names.",
+    about_u_3x:"— SNI tunnel with DPI desync, scanners, xray testing, Psiphon & SPlus tunnels, WinDivert management.",
+    saved_sni_t:"Saved SNI list", saved_sni_h:"Front SNIs you saved from the Site Scanner. Connect uses one as the spoofed SNI and starts the tunnel.",
+    saved_sni_empty:"Nothing saved yet — scan in the Site Scanner and click Save on a working host.", saved_sni_clear_c:"Clear the whole saved SNI list?",
+    f_direct_run:"Direct (uncheck to route through the local SNI proxy at host/port above)", c_start_xray:"Start xray", xr_server:"server:",
     psi_h1:"Psiphon Device Tunnel", psi_sub:"Run the embedded Psiphon tunnel and route it through an upstream proxy this app exposes (the SNI Tunnel or the SPlus SOCKS). Psiphon then provides local SOCKS5 + HTTP proxies your whole device can use.",
     psi_cfg:"Tunnel", f_upstream:"Upstream proxy URL (this app's proxy)", f_local_socks:"Local SOCKS5 port (device)", f_local_http:"Local HTTP port (device)", c_start_psi:"Start Psiphon",
     psi_how_t:"How to use it",
@@ -665,10 +1070,25 @@ const I18N = {
     sniscan_single:"Single SNI check", f_host:"Host", f_port:"Port", sniscan_relay:"Relay test (connect → SNI → HEAD)",
     mass_h1:"Mass SNI Scan", mass_sub:"Connect to one edge IP and try many SNI hostnames against it — find which front domains (including captcha endpoints) work through a given relay.",
     mass_target:"Target", f_sni_list:"SNI hostnames (one per line)",
-    cf_h1:"IP Scanner", cf_sub:"Sweep Cloudflare (or custom) IP ranges for reachable TLS endpoints. CIDRs expand up to 256 hosts each; use the limit to cap total probes.",
+    cf_h1:"Clean IP Scanner", cf_sub:"Sweep Cloudflare (or custom) IP ranges for reachable TLS endpoints. CIDRs expand up to 256 hosts each; use the limit to cap total probes.",
     cf_ranges_t:"Ranges & parameters", f_ranges:"Ranges — CIDR or IP, one per line", f_sni:"SNI", f_limit:"Limit (max IPs)",
     ce_h1:"CDN Edge Test", ce_sub:"Test many CDN edge IPs for domain/CDN fronting — each is dialed, TLS-handshaked with the front SNI, then probed with the real Host. Results are ranked by ping; click an edge (or “Connect best”) to start the fronting proxy on it.",
     ce_params:"Front & targets", f_front_sni:"Front SNI", ce_connect_best:"Connect best", ce_best_lbl:"best:", th_ping:"Ping", c_connect:"Connect",
+    f_cfg_path:"Config path (empty = running folder)",
+    f_mass_speeds:"Measure download & upload through each config (slower — uses speed.cloudflare.com)", th_down:"Download", th_up:"Upload",
+    cc_h1:"CDN Configs Builder", cc_sub:"Paste one Cloudflare-backed xray share link. The app ping-ranks hundreds of CF edge IPs against that config's SNI (phase 1), then speed-tests the fastest ones through xray for real download & upload (phase 2). The output is a savebox of up to 50 ready-to-use share links pointing at the best edges, ranked by throughput.",
+    cc_cfg:"Base config & scan", f_max_scan:"Phase 1: IPs to ping", f_top_speed:"Phase 2: top-N for speed test", f_final_count:"Savebox size (max)",
+    f_down_bytes:"Download bytes per IP", f_up_bytes:"Upload bytes per IP", f_speed_conc:"Phase 2 concurrency",
+    c_run_scan:"Run scan", cc_scanned:"scanned", cc_speed_tested:"speed-tested",
+    cc_top:"🏆 Live top edges", c_stop_scan:"Stop scan", c_starting:"starting…", c_idle:"idle",
+    f_per_range:"IPs per range", f_ports:"Ports to check (comma-separated)", f_ping_conc:"Phase 1 threads (ping)",
+    f_ping_to:"Phase 1 timeout (s)", f_full_range:"Full range — ignore the per-range cap (every IP in every CIDR; can be huge)",
+    f_cfports:"Cloudflare HTTPS ports preset (443, 2053, 2083, 2087, 2096, 8443)",
+    c_pause:"Pause", c_resume:"Resume", cc_paused:"paused", cc_no_ports:"no valid ports specified",
+    cc_waiting:"waiting for the first results…", cc_phase1:"Phase 1 — ping", cc_phase2:"Phase 2 — speed",
+    cc_done:"done", cc_stopped:"stopped",
+    cc_save_t:"Savebox — best configs", cc_save_h:"After the scan, the top configs (rewritten to point at the best edge IPs) appear here, ranked by download throughput. Copy them into your client.",
+    c_copy:"Copy", cc_copied:"copied!", cc_empty:"savebox is empty",
     uri_h1:"URI Parser", uri_sub:"Decode vless:// and vmess:// share links into their host, port, UUID, SNI, transport and TLS fields — then send them straight to the SNI Tunnel.",
     uri_link:"Share link",
     wd_h1:"WinDivert Driver", wd_sub:"Install, start, or remove the WinDivert kernel driver used for system-wide packet interception. Windows only, and requires Administrator rights.",
@@ -676,7 +1096,7 @@ const I18N = {
     wd_notes_t:"Notes",
     wd_n1:"Place WinDivert64.sys (and the matching .dll/.sys for your architecture) next to this app, or point to its folder above. The driver must match your Windows build.",
     wd_n2:"Run the app as Administrator before installing — kernel service creation requires elevation. On non-Windows systems this tab is informational only.",
-    about_h1:"About", about_app:"EzSNI — DPI Bypass Suite",
+    about_h1:"About", about_app:"V2RayEz — DPI Bypass & CDN Toolkit",
     about_tagline:"An all-in-one DPI-bypass & SNI-spoofing toolkit — proxy, scanners, Xray tester, SPlus LiveKit tunnel, and WinDivert management, in one fast offline Go app.",
     about_madeby:"Made by", about_what_t:"What it does",
     about_f1_t:"SNI Tunnel", about_f1_d:"Dual-mode local proxy: transparent (terminates TLS with a fake SNI) or passthrough (raw TCP for Xray). With relay test, port check and LAN sharing.",
@@ -691,7 +1111,7 @@ const I18N = {
     about_scope_d:"The proxy intentionally skips upstream certificate verification — that is inherent to SNI spoofing, where the presented certificate won't match the fake SNI. Use this tool only where it is lawful for you to do so.",
     about_lk_note:"The SPlus tunnel needs a LiveKit-enabled build (go build -tags livekit). Without it, starting a tunnel returns build instructions.",
     about_follow:"Follow the channel for updates, configs and support:",
-    r_host:"host", r_status:"status", r_latency:"latency", r_error:"error", r_tcp:"tcp connect", r_tls:"tls handshake",
+    r_host:"host", r_ip:"resolved IP", c_get_latest:"Get latest configs", c_configs_added:"configs added", r_status:"status", r_latency:"latency", r_error:"error", r_tcp:"tcp connect", r_tls:"tls handshake",
     r_relay:"relay", r_protocol:"protocol", r_port:"port", r_uuid:"uuid", r_sni:"sni", r_transport:"transport",
     r_path:"path", r_tls_f:"tls", r_enabled:"enabled", r_none:"none", r_http:"HTTP status", r_bytes:"bytes",
     r_xray:"xray path", r_server:"server", r_resp:"response", th_sni:"SNI", th_result:"Result", th_http:"HTTP",
@@ -699,14 +1119,47 @@ const I18N = {
     wd_supported:"supported", wd_admin:"admin", wd_running:"running", wd_installed:"installed", yes:"yes", no:"no",
   },
   fa:{
-    hdr_edition:"ساختهٔ MacanDev", hdr_proxy:"پروکسی", hdr_splus:"SPlus", badge_new:"جدید",
-    nav_proxy:"تونل SNI", nav_splus:"تونل SPlus", nav_psiphon:"سایفون", nav_xray:"تست Xray", nav_sniscan:"اسکن SNI",
-    nav_mass:"اسکن گروهی SNI", nav_cf:"اسکنر IP", nav_cdnedge:"تست اِج CDN", nav_uri:"تجزیه‌گر URI", nav_windivert:"WinDivert", nav_about:"درباره",
+    hdr_edition:"ساختهٔ MacanDev · @EzAccess1", hdr_proxy:"تونل SNI", hdr_splus:"SPlus", hdr_xray:"xray", badge_new:"جدید",
+    sec_tunnels:"تونل‌ها", sec_scanners:"اسکنرها", sec_tools:"ابزارها", sec_library:"کتابخانه",
+    nav_configs:"کانفیگ‌ها", nav_edge:"اِج تونل", nav_sites:"اسکنر سایت", nav_cfworker:"ورکر CF",
+    sites_h1:"اسکنر سایت", sites_sub:"دامنه‌ها را بچسبانید (یا لیست کپچا را بارگذاری کنید) تا ببینید کدام در دسترس‌اند، IP و تأخیرشان چیست و آیا روی CDN کلودفلر هستند — برای انتخاب SNI فرانت و IP تمیز مفید است.",
+    sites_in_t:"دامنه‌ها", c_scan:"اسکن", c_copy_cf:"کپی IPهای کلودفلر", st_not_cf:"غیر CF",
+    cfw_h1:"ورکر کلودفلر", cfw_sub:"در چند دقیقه پروکسی VLESS رایگان خودتان را روی Cloudflare Worker راه بیندازید. یک UUID بسازید، مراحل را دنبال کنید، سپس در تب اِج تونل کانفیگ کلاینت بسازید.",
+    cfw_step_t:"گام‌به‌گام", cfw_env_t:"مقادیر شما", f_cfw_proxyip:"PROXYIP (اختیاری)", c_to_edge:"استفاده در اِج تونل",
+    cfw_s1:"در dash.cloudflare.com وارد شوید → Compute → Workers & Pages → Create application → Worker → Deploy.",
+    cfw_s2:"روی «Edit code» بزنید، کد پیش‌فرض را پاک کنید و _worker.js از edgetunnel (github.com/cmliu/edgetunnel) را بچسبانید — یا هر ورکر VLESS مورد اعتماد.",
+    cfw_s3:"Settings → Variables: مقدار UUID = مقدار زیر را اضافه کنید. (اختیاری: PROXYIP و ADMIN برای پنل.) یک KV namespace با نام KV متصل کنید. ذخیره و Deploy.",
+    cfw_s4:"Triggers → یک دامنهٔ سفارشی اضافه کنید (مثل vless.yourdomain.com) تا یک SNI تمیز داشته باشید.",
+    cfw_s5:"به تب اِج تونل بروید، دامنهٔ ورکر و این UUID را وارد کنید و کانفیگ آماده بسازید.",
+    cfw_warn:"این پنل فقط مقادیر و راهنما تولید می‌کند — هرگز به حساب کلودفلر شما وارد نمی‌شود یا تغییری نمی‌دهد. ورکر را خودتان طبق قوانین کلودفلر و محلی‌تان دیپلوی و اجرا کنید.",
+    cfgm_h1:"کتابخانهٔ کانفیگ", cfgm_sub:"کانفیگ‌ها را گروه‌بندی کنید، اشتراک وارد کنید، لینک‌ها را بکشید و رها کنید، سپس تست، اشتراک‌گذاری (QR/کپی) و اتصال کنید. با Ctrl/⌘ چندتایی انتخاب کنید؛ با Enter به انتخاب‌شده وصل شوید. همه‌چیز خودکار ذخیره می‌شود.",
+    cfgm_add_t:"افزودن کانفیگ", cfgm_list_t:"کانفیگ‌ها", cfgm_in_group:"در گروه", cfgm_empty:"هنوز کانفیگی نیست — بچسبانید، اشتراک وارد کنید یا لینک‌ها را اینجا رها کنید.",
+    cfgm_group_name:"نام گروه:", cfgm_del_confirm:"این گروه و کانفیگ‌هایش حذف شوند؟",
+    c_add_group:"+ گروه", c_rename_group:"تغییر نام", c_del_group:"حذف گروه", c_add_to_group:"افزودن به گروه",
+    c_import_sub:"وارد کردن اشتراک", c_test_group:"تست پینگ گروه", c_copy_group:"کپی گروه",
+    c_edit:"ویرایش", c_delete:"حذف", c_close:"بستن",
+    edge_h1:"اِج تونل", edge_sub:"برای یک دیپلوی edgetunnel روی Cloudflare Worker/Pages (cmliu/edgetunnel) کانفیگ کلاینت VLESS-over-WebSocket بسازید. ورکر را با UUID خود دیپلوی کنید، سپس کانفیگ آمادهٔ استفاده اینجا بسازید — آن‌ها را به یک IP تمیز کلودفلر اشاره دهید و دامنهٔ ورکر را به‌عنوان SNI/Host نگه دارید.",
+    edge_gen_t:"ساخت کانفیگ", edge_deploy_t:"نحوهٔ دیپلوی",
+    f_edge_host:"دامنهٔ Worker/Pages (SNI و Host)", f_edge_uuid:"UUID", f_edge_addr:"آدرس اتصال (IP/دامنهٔ تمیز CF — اختیاری)",
+    f_edge_path:"مسیر WS", f_edge_name:"نام نود", f_edge_allports:"همهٔ پورت‌های TLS کلودفلر (۴۴۳، ۲۰۵۳، ۲۰۸۳، ۲۰۸۷، ۲۰۹۶، ۸۴۴۳) — وگرنه فقط ۴۴۳",
+    c_generate:"ساختن", c_new_uuid:"UUID جدید", c_send_lib:"ارسال به کتابخانه",
+    edge_d1:"یک Cloudflare Worker (یا Pages) بسازید و فایل _worker.js از github.com/cmliu/edgetunnel را بچسبانید.",
+    edge_d2:"متغیر محیطی UUID = همان UUID بالا را اضافه کنید (و در صورت تمایل PROXYIP)، سپس یک KV namespace با نام KV متصل کنید.",
+    edge_d3:"به ورکر یک دامنهٔ سفارشی بدهید و آن را در «دامنهٔ ورکر» بالا قرار دهید.",
+    edge_d4:"اینجا کانفیگ بسازید، به کتابخانه بفرستید، سپس اسکنر CDN Configs را اجرا کنید تا سریع‌ترین IP‌های تمیز را پیدا کند.",
+    edge_warn:"این ابزار فقط لینک کلاینت می‌سازد و هرگز به حساب کلودفلر شما دست نمی‌زند. ورکر را خودتان طبق قوانین محلی‌تان دیپلوی و مدیریت کنید.",
+    cc_more_results:"اِج‌های بیشتر",
+    nav_proxy:"تونل SNI", nav_splus:"تونل SPlus", nav_psiphon:"سایفون", nav_xray:"هستهٔ XRay", nav_massuri:"چک انبوه URI", nav_sniscan:"اسکن SNI", nav_cdnconfigs:"کانفیگ‌های CDN",
+    nav_mass:"اسکن گروهی SNI", nav_cf:"اسکنر IP تمیز", nav_cdnedge:"تست اِج CDN", nav_uri:"تجزیه‌گر URI", nav_windivert:"WinDivert", nav_about:"درباره",
     c_start_proxy:"شروع پروکسی", c_stop:"توقف", c_check_port:"بررسی پورت", c_run_relay:"اجرای تست رله",
     c_start_tunnel:"شروع تونل", c_run_test:"اجرای تست", c_test:"تست", c_scan:"اسکن", c_parse:"تجزیه",
     c_send_tunnel:"ارسال به تونل SNI", c_load_captcha:"بارگذاری لیست کپچا", c_load_defaults:"بارگذاری پیش‌فرض",
     c_install_wd:"نصب و راه‌اندازی", c_uninstall_wd:"توقف و حذف", c_refresh:"بازخوانی",
     c_running:"در حال اجرا", c_stopped:"متوقف", c_console:"کنسول", c_clear:"پاک‌سازی", c_live:"زنده",
+    c_saving:"در حال ذخیره…", c_loading:"در حال بارگذاری…",
+    cfg_t:"پیکربندی برنامه", cfg_h:"همهٔ تنظیمات همهٔ تب‌ها را در یک فایل روی این دستگاه ذخیره کنید. دفعهٔ بعد که برنامه را اجرا کنید خودکار بازیابی می‌شود — یا اینجا دستی بارگذاری کنید.",
+    c_save_cfg:"ذخیرهٔ پیکربندی", c_load_cfg:"بارگذاری پیکربندی",
+    cfg_saved:"ذخیره شد ←", cfg_loaded:"پیکربندی بارگذاری شد", cfg_none:"هنوز پیکربندی ذخیره‌شده‌ای نیست", cfg_restored:"پیکربندی ذخیره‌شده بازیابی شد",
     c_connecting:"در حال اتصال...", c_reconnecting:"در حال اتصال مجدد...",
     c_testing:"در حال تست...", c_running_e:"در حال اجرا...", c_scanning:"در حال اسکن...",
     st_reachable:"در دسترس", st_failed:"ناموفق", st_ok:"موفق", st_open:"باز", st_closed:"بسته",
@@ -736,17 +1189,42 @@ const I18N = {
     splus_st4:"ابتدا سمت سرور و سپس کلاینت را شروع کنید. هر طرف به توکن خودش نیاز دارد.",
     splus_socks_t:"استفاده از پروکسی SOCKS5 (کلاینت)",
     splus_socks_h:"برنامه‌ها را به socks5h://<host>:<port> اشاره دهید و DNS را از پروکسی عبور دهید. تست سریع:",
-    xray_h1:"تست اتصال Xray",
+    xray_h1:"هستهٔ XRay",
     xray_sub:"یک لینک vless:// یا vmess:// را وارد کنید و یک درخواست واقعی HTTPS را از طریق آن — با عبور از پروکسی جعل‌کنندهٔ SNI روی این سیستم — تست کنید. به فایل اجرایی xray یا v2ray در PATH نیاز دارد.",
     xray_cfg:"تنظیمات تست", f_uri:"لینک اشتراک (vless / vmess)", f_proxy_host:"هاست پروکسی محلی", f_proxy_port:"پورت پروکسی محلی",
     f_socks_in:"پورت SOCKS اکس‌ری", f_test_url:"آدرس تست", f_timeout:"مهلت (ثانیه)",
     xray_note:"نکته: ابتدا پروکسی تونل SNI را در حالت عبوری (PASSTHROUGH) اجرا کنید؛ پورت شنوندهٔ آن را برابر پورت پروکسی محلی اینجا و IP/پورت مقصدش را روی سرور واقعی‌تان بگذارید. اکس‌ری از آن عبور می‌کند تا تست، مسیر جعل SNI شما را کامل بازتاب دهد. تأخیر زیادِ تکه‌تکه‌سازی می‌تواند دست‌دهی را کند کند.",
     xray_bin:"فایل اجرایی Xray", f_xray_path:"مسیر xray / v2ray (خالی = تشخیص خودکار)", c_detect:"تشخیص", c_download_xray:"دانلود xray",
     x_notfound:"یافت نشد", x_downloading:"در حال دانلود…", f_direct:"مستقیم — اتصال مستقیم به سرور کانفیگ (برای عبور از پروکسی SNI محلی تیک را بردارید)",
-    xray_mass:"بررسی گروهی URI", xray_mass_h:"چندین کانفیگ (هر خط یکی) را بچسبانید. برای هرکدام پینگ (TCP) و تأخیر رله (TLS) تا سرور خودش اندازه‌گیری می‌شود — سریع‌ترین‌ها اول. نیازی به xray نیست.",
+    xray_mass:"بررسی گروهی URI", xray_mass_h:"چندین کانفیگ — vless / vmess / trojan / shadowsocks، هر خط یکی. هرکدام از طریق xray اجرا شده و یک درخواست واقعی به هاست تست زده می‌شود؛ پینگ (تا سرور) و تأخیر رله (از تونل) با ترتیب سریع‌ترین اول. به فایل اجرایی xray بالا نیاز دارد.",
+    f_test_host:"هاست/آدرس تست (مثلاً https://instagram.com)", f_mass_tunnel:"تست از طریق تونل SNI (از هاست/پورت پروکسی محلیِ «تست تکی» استفاده می‌کند) — برای اتصال مستقیم خاموش بگذارید",
     c_test_all:"تست همه", th_config:"کانفیگ", th_relay:"رله", c_use:"استفاده",
-    xray_run:"اجرای xray روی این دستگاه", xray_run_h:"xray را به‌عنوان یک پروکسی SOCKS5 محلی اجرا کنید تا کل دستگاه از آن استفاده کند. یک کانفیگ انتخاب کنید؛ برای اشتراک در شبکه روی 0.0.0.0 بگذارید.",
-    f_direct_run:"مستقیم (برای عبور از پروکسی SNI محلی با هاست/پورت بالا تیک را بردارید)", c_start_xray:"شروع xray",
+    xray_run:"اجرا روی این دستگاه", xray_run_h:"xray را به‌عنوان یک پروکسی SOCKS5 محلی اجرا کنید تا کل دستگاه از آن استفاده کند. یک کانفیگ انتخاب کنید؛ برای اشتراک در شبکه روی 0.0.0.0 بگذارید.",
+    c_start:"شروع", nav_massuri_x:"",
+    f_singbox_path:"مسیر sing-box (برای حالت TUN — خالی بگذارید تا خودکار پیدا شود)", c_detect_singbox:"یافتن sing-box", c_download_singbox:"دانلود sing-box",
+    xray_run_none:"هنوز کانفیگی متصل نشده — به کتابخانه بروید و روی ▶ یک کانفیگ بزنید. سبز می‌شود و کانفیگ فعال اینجا خواهد بود.",
+    xray_run_active:"کانفیگ فعال:", f_engine:"موتور", opt_xray_socks:"xray — پروکسی SOCKS5 محلی", opt_singbox_tun:"sing-box — VPN سراسری TUN",
+    f_tun_mode:"حالت TUN — همهٔ ترافیک دستگاه از کانفیگ عبور کند (نیاز به ادمین/روت)",
+    xray_tun_warn:"حالت TUN با sing-box یک آداپتور شبکهٔ مجازی می‌سازد و سیستم را بازمسیردهی می‌کند. باید V2RayEz را به‌عنوان ادمین (ویندوز) یا با sudo (مک/لینوکس) اجرا کنید. در ویندوز، sing-box در اولین اجرا Wintun را خودکار دانلود می‌کند.",
+    xr_tun_on:"TUN فعال است — همهٔ ترافیک دستگاه از کانفیگ عبور می‌کند (sing-box v2rayez-tun)",
+    xray_cfg_h:"یک کانفیگ بچسبانید و یک درخواست واقعی HTTPS از طریق آن انجام دهید — مستقیم یا از مسیر این تونل SNI — تا درست‌بودن تنظیمات تأیید شود. به باینری xray نیاز دارد (در هستهٔ XRay تنظیمش کنید).",
+    c_select_all:"انتخاب همه", cfgm_latest_grp:"آخرین",
+    c_save:"ذخیره", c_relay:"رله", r_ping:"پینگ",
+    c_speedtest:"تست سرعت", c_share:"اشتراک / QR", c_load_sni:"بارگذاری کانفیگ‌های SNI", cfgm_sni_grp:"SNI اسپوف", c_copy_uuid:"کپی UUID",
+    cfgm_edit_t:"ویرایش کانفیگ", ed_name:"نام", ed_address:"آدرس (هاست / IP)", ed_port:"پورت", ed_uuid:"UUID", ed_password:"رمز عبور",
+    ed_method:"رمزنگاری (method)", ed_encryption:"رمزنگاری", ed_flow:"Flow", ed_network:"شبکه (ترنسپورت)", ed_path:"مسیر / سرویس",
+    ed_hosthdr:"هدر Host", ed_security:"امنیت", ed_sni:"SNI", ed_fp:"اثرانگشت uTLS", ed_alpn:"ALPN",
+    ed_unparsed:"این لینک به فیلدها تجزیه نشد — URI خام را مستقیم ویرایش کنید.",
+    hdr_tun:"TUN", f_autosave:"ذخیرهٔ خودکار همه‌چیز (بازیابی در اجرای بعدی)", cfg_h2:"همه‌چیز در همهٔ تب‌ها به‌طور خودکار در پوشهٔ اجرای برنامه ذخیره و در اجرای بعدی بازیابی می‌شود. می‌توانید فایل مشخصی هم ذخیره/بارگذاری کنید.",
+    about_f7_t:"TUN با sing-box", about_f7_d:"sing-box را پیدا یا دانلود کنید و هر کانفیگ متصل را به‌صورت VPN سراسری TUN اجرا کنید — همهٔ ترافیک دستگاه از آن عبور می‌کند (نیاز به ادمین/روت).",
+    about_f8_t:"کتابخانهٔ کانفیگ", about_f8_d:"گروه‌ها، اشتراک‌ها، لیست‌های کانفیگ SNI/اسپوف، اشتراک QR، منوی راست‌کلیک، انتخاب چندتایی با تست رله/سرعت دسته‌ای — همه به‌طور خودکار ذخیره می‌شوند.",
+    about_updates_t:"تازه‌ها",
+    about_u_41:"— حالت TUN سراسری با sing-box؛ شروع/توقف و کلید TUN در نوار بالا؛ بازسازی اسکنر سایت با پیشرفت زنده، کارت‌ها و اتصال/ذخیره؛ لیست SNI ذخیره‌شده؛ همهٔ اسکنرها کارت + نوار پیشرفت؛ منوی راست‌کلیک کتابخانه، انتخاب با Shift و تست‌های دسته‌ای؛ بارگذاری کانفیگ SNI؛ ذخیرهٔ خودکار؛ چیدمان موبایل؛ حذف Edge Tunnel.",
+    about_u_40:"— تغییر نام به V2RayEz؛ تب XRay Core؛ کتابخانهٔ کانفیگ با گروه‌ها، اشتراک‌ها، QR و کشیدن‌ورها؛ پنجرهٔ نیتیو؛ دسترسی شبکه روی 0.0.0.0:8765؛ سازندهٔ ورکر کلودفلر؛ سازندهٔ CDN Configs؛ نام‌گذاری کانفیگ‌ها.",
+    about_u_3x:"— تونل SNI با ضد DPI، اسکنرها، تست xray، تونل‌های Psiphon و SPlus، مدیریت WinDivert.",
+    saved_sni_t:"لیست SNI ذخیره‌شده", saved_sni_h:"SNIهای فرانتی که از اسکنر سایت ذخیره کرده‌اید. «اتصال» یکی را به‌عنوان SNI جعلی استفاده کرده و تونل را شروع می‌کند.",
+    saved_sni_empty:"هنوز چیزی ذخیره نشده — در اسکنر سایت اسکن کنید و روی «ذخیره» یک هاست سالم بزنید.", saved_sni_clear_c:"کل لیست SNI ذخیره‌شده پاک شود؟",
+    f_direct_run:"مستقیم (برای عبور از پروکسی SNI محلی با هاست/پورت بالا تیک را بردارید)", c_start_xray:"شروع xray", xr_server:"سرور:",
     psi_h1:"تونل دستگاه سایفون", psi_sub:"تونل تعبیه‌شدهٔ سایفون را اجرا کنید و آن را از طریق یک پروکسی بالادست که همین برنامه ارائه می‌دهد (تونل SNI یا SOCKS اسپلاس) عبور دهید. سپس سایفون پروکسی‌های SOCKS5 و HTTP محلی برای کل دستگاه فراهم می‌کند.",
     psi_cfg:"تونل", f_upstream:"آدرس پروکسی بالادست (پروکسی همین برنامه)", f_local_socks:"پورت SOCKS5 محلی (دستگاه)", f_local_http:"پورت HTTP محلی (دستگاه)", c_start_psi:"شروع سایفون",
     psi_how_t:"نحوهٔ استفاده",
@@ -758,10 +1236,25 @@ const I18N = {
     sniscan_single:"بررسی تک SNI", f_host:"هاست", f_port:"پورت", sniscan_relay:"تست رله (اتصال → SNI → HEAD)",
     mass_h1:"اسکن گروهی SNI", mass_sub:"به یک IP متصل شوید و چندین هاست SNI را روی آن امتحان کنید — ببینید کدام دامنه‌های فرانت (از جمله نقاط کپچا) از طریق آن رله کار می‌کنند.",
     mass_target:"هدف", f_sni_list:"هاست‌های SNI (هر کدام در یک خط)",
-    cf_h1:"اسکنر IP", cf_sub:"محدودهٔ IP کلودفلر (یا دلخواه) را برای نقاط TLS قابل دسترس جارو کنید. هر CIDR تا ۲۵۶ هاست باز می‌شود؛ از محدودیت برای کنترل تعداد استفاده کنید.",
+    cf_h1:"اسکنر IP تمیز", cf_sub:"محدودهٔ IP کلودفلر (یا دلخواه) را برای نقاط TLS قابل دسترس جارو کنید. هر CIDR تا ۲۵۶ هاست باز می‌شود؛ از محدودیت برای کنترل تعداد استفاده کنید.",
     cf_ranges_t:"محدوده‌ها و پارامترها", f_ranges:"محدوده‌ها — CIDR یا IP، هر کدام در یک خط", f_sni:"SNI", f_limit:"محدودیت (حداکثر IP)",
     ce_h1:"تست اِج CDN", ce_sub:"چندین IP اِج CDN را برای دامین/CDN فرانتینگ تست کنید — هر کدام متصل شده، با SNI فرانت دست‌دهی TLS انجام می‌شود و سپس با هاست واقعی بررسی می‌شود. نتایج بر اساس پینگ مرتب می‌شوند؛ روی یک اِج (یا «اتصال به بهترین») بزنید تا پروکسی فرانتینگ روی آن اجرا شود.",
     ce_params:"فرانت و اهداف", f_front_sni:"SNI فرانت", ce_connect_best:"اتصال به بهترین", ce_best_lbl:"بهترین:", th_ping:"پینگ", c_connect:"اتصال",
+    f_cfg_path:"مسیر فایل پیکربندی (خالی = پوشهٔ اجرای برنامه)",
+    f_mass_speeds:"اندازه‌گیری دانلود و آپلود از طریق هر کانفیگ (کندتر — از speed.cloudflare.com)", th_down:"دانلود", th_up:"آپلود",
+    cc_h1:"سازندهٔ کانفیگ‌های CDN", cc_sub:"یک لینک xray پشت کلودفلر را بچسبانید. برنامه صدها IP اِج CF را روی SNI همان کانفیگ پینگ می‌کند (فاز ۱)، سپس سریع‌ترین‌ها را از طریق xray با دانلود و آپلود واقعی تست می‌کند (فاز ۲). خروجی یک سیوباکس از حداکثر ۵۰ لینک آمادهٔ استفاده روی بهترین اِج‌هاست، مرتب بر اساس سرعت.",
+    cc_cfg:"کانفیگ پایه و اسکن", f_max_scan:"فاز ۱: تعداد IP برای پینگ", f_top_speed:"فاز ۲: تعداد برتر برای تست سرعت", f_final_count:"سایز سیوباکس (حداکثر)",
+    f_down_bytes:"بایت دانلود به ازای هر IP", f_up_bytes:"بایت آپلود به ازای هر IP", f_speed_conc:"همزمانی فاز ۲",
+    c_run_scan:"اجرای اسکن", cc_scanned:"اسکن‌شده", cc_speed_tested:"سرعت‌تست‌شده",
+    cc_top:"🏆 برترین‌های زنده", c_stop_scan:"توقف اسکن", c_starting:"در حال شروع…", c_idle:"بی‌کار",
+    f_per_range:"تعداد IP در هر رنج", f_ports:"پورت‌ها (جدا با ویرگول)", f_ping_conc:"رشته‌های فاز ۱ (پینگ)",
+    f_ping_to:"تایم‌اوت فاز ۱ (ثانیه)", f_full_range:"رنج کامل — نادیده‌گرفتن سقف هر رنج (همهٔ IP‌های همهٔ CIDRها؛ ممکن است خیلی زیاد شود)",
+    f_cfports:"پیش‌تنظیم پورت‌های HTTPS کلودفلر (۴۴۳، ۲۰۵۳، ۲۰۸۳، ۲۰۸۷، ۲۰۹۶، ۸۴۴۳)",
+    c_pause:"مکث", c_resume:"ادامه", cc_paused:"در مکث", cc_no_ports:"هیچ پورت معتبری مشخص نشد",
+    cc_waiting:"در انتظار اولین نتیجه‌ها…", cc_phase1:"فاز ۱ — پینگ", cc_phase2:"فاز ۲ — سرعت",
+    cc_done:"تمام", cc_stopped:"متوقف شد",
+    cc_save_t:"سیوباکس — بهترین کانفیگ‌ها", cc_save_h:"بعد از اسکن، کانفیگ‌های برتر (با IP اِج‌های جایگزین‌شده) اینجا ظاهر می‌شوند، مرتب بر اساس دانلود. کپی‌شان کنید و در کلاینت‌تان استفاده کنید.",
+    c_copy:"کپی", cc_copied:"کپی شد!", cc_empty:"سیوباکس خالی است",
     uri_h1:"تجزیه‌گر URI", uri_sub:"لینک‌های vless:// و vmess:// را به هاست، پورت، UUID، SNI، انتقال و TLS تجزیه کنید — سپس مستقیماً به تونل SNI بفرستید.",
     uri_link:"لینک اشتراک",
     wd_h1:"درایور WinDivert", wd_sub:"نصب، راه‌اندازی یا حذف درایور هسته‌ای WinDivert برای رهگیری بسته در سطح سیستم. فقط ویندوز و نیازمند دسترسی مدیر.",
@@ -769,7 +1262,7 @@ const I18N = {
     wd_notes_t:"یادداشت‌ها",
     wd_n1:"فایل WinDivert64.sys (و dll/sys متناسب با معماری شما) را کنار این برنامه قرار دهید یا پوشهٔ آن را در بالا مشخص کنید. درایور باید با نسخهٔ ویندوز شما سازگار باشد.",
     wd_n2:"پیش از نصب، برنامه را به‌عنوان مدیر اجرا کنید — ساخت سرویس هسته نیازمند دسترسی بالا است. روی سیستم‌های غیرویندوزی این تب فقط اطلاع‌رسانی است.",
-    about_h1:"درباره", about_app:"EzSNI — مجموعهٔ عبور از فیلترینگ",
+    about_h1:"درباره", about_app:"V2RayEz — مجموعهٔ عبور از فیلترینگ و CDN",
     about_tagline:"یک جعبه‌ابزار همه‌کاره برای عبور از DPI و جعل SNI — پروکسی، اسکنرها، تستر Xray، تونل LiveKit اسپلاس و مدیریت WinDivert، در یک برنامهٔ سریع و آفلاین Go.",
     about_madeby:"ساختهٔ", about_what_t:"چه کاری می‌کند",
     about_f1_t:"تونل SNI", about_f1_d:"پروکسی محلی دو حالته: شفاف (خاتمهٔ TLS با SNI جعلی) یا عبوری (TCP خام برای Xray). همراه با تست رله، بررسی پورت و اشتراک شبکه.",
@@ -784,7 +1277,7 @@ const I18N = {
     about_scope_d:"پروکسی عمداً تأیید گواهی سرور را نادیده می‌گیرد — این ذاتی جعل SNI است، جایی که گواهی ارائه‌شده با SNI جعلی مطابقت ندارد. این ابزار را تنها در جایی که برایتان قانونی است استفاده کنید.",
     about_lk_note:"تونل SPlus به ساخت با LiveKit نیاز دارد (go build -tags livekit). بدون آن، شروع تونل دستورالعمل ساخت را برمی‌گرداند.",
     about_follow:"برای به‌روزرسانی‌ها، کانفیگ‌ها و پشتیبانی کانال را دنبال کنید:",
-    r_host:"هاست", r_status:"وضعیت", r_latency:"تأخیر", r_error:"خطا", r_tcp:"اتصال tcp", r_tls:"دست‌دهی tls",
+    r_host:"هاست", r_ip:"IP یافت‌شده", c_get_latest:"دریافت آخرین کانفیگ‌ها", c_configs_added:"کانفیگ اضافه شد", r_status:"وضعیت", r_latency:"تأخیر", r_error:"خطا", r_tcp:"اتصال tcp", r_tls:"دست‌دهی tls",
     r_relay:"رله", r_protocol:"پروتکل", r_port:"پورت", r_uuid:"شناسه", r_sni:"SNI", r_transport:"انتقال",
     r_path:"مسیر", r_tls_f:"TLS", r_enabled:"فعال", r_none:"ندارد", r_http:"کد HTTP", r_bytes:"بایت",
     r_xray:"مسیر xray", r_server:"سرور", r_resp:"پاسخ", th_sni:"SNI", th_result:"نتیجه", th_http:"HTTP",
@@ -808,40 +1301,150 @@ function applyLang(){
 $("langBtn").onclick=()=>{ LANG = (LANG==="fa")?"en":"fa"; try{ localStorage.setItem("lang",LANG); }catch(e){} applyLang(); };
 
 /* ===================== tabs ===================== */
-const TABS = [
-  {id:"proxy",ic:"\u224B"},{id:"splus",ic:"\u21C4",tag:"new"},{id:"psiphon",ic:"\u24C5",tag:"new"},{id:"xray",ic:"\u2713"},
-  {id:"sniscan",ic:"\u25CE"},{id:"mass",ic:"\u22EE"},{id:"cf",ic:"\u229E"},
-  {id:"cdnedge",ic:"\u26A1",tag:"new"},
-  {id:"uri",ic:"\u2301"},{id:"windivert",ic:"\u229E"},{id:"about",ic:"\u24D8"},
+const NAV_SECTIONS = [
+  {label:"sec_library", items:[
+    {id:"configs",   ic:"\u2637"},
+    {id:"xray",      ic:"\u2699"},
+  ]},
+  {label:"sec_tunnels", items:[
+    {id:"proxy",   ic:"\u224B"},
+    {id:"splus",   ic:"\u21C4", tag:"new"},
+    {id:"psiphon", ic:"\u24C5", tag:"new"},
+  ]},
+  {label:"sec_scanners", items:[
+    {id:"sniscan",   ic:"\u25CE"},
+    {id:"massuri",   ic:"\u2263", tag:"new"},
+    {id:"mass",      ic:"\u22EE"},
+    {id:"cf",        ic:"\u229E"},
+    {id:"sites",     ic:"\u2318", tag:"new"},
+    {id:"cdnedge",   ic:"\u26A1", tag:"new"},
+    {id:"cdnconfigs",ic:"\u2730", tag:"new"},
+  ]},
+  {label:"sec_tools", items:[
+    {id:"cfworker",  ic:"\u2601", tag:"new"},
+    {id:"windivert", ic:"\u229E"},
+    {id:"about",     ic:"\u24D8"},
+  ]},
 ];
+const TABS = NAV_SECTIONS.flatMap(s=>s.items);
 const rail = $("rail");
-TABS.forEach((tb,i)=>{
-  const b=document.createElement("button");
-  b.className="navbtn"+(i===0?" active":""); b.dataset.tab=tb.id;
-  b.innerHTML='<span class="ic">'+tb.ic+'</span><span class="nlabel"></span>'+(tb.tag?'<span class="tag" data-i18n="badge_new"></span>':'');
-  b.onclick=()=>selectTab(tb.id);
-  rail.appendChild(b);
+NAV_SECTIONS.forEach(sec=>{
+  const h = document.createElement("div");
+  h.className = "navsec";
+  h.setAttribute("data-i18n", sec.label);
+  rail.appendChild(h);
+  sec.items.forEach(tb=>{
+    const b=document.createElement("button");
+    b.className="navbtn"; b.dataset.tab=tb.id;
+    b.innerHTML='<span class="ic">'+tb.ic+'</span><span class="nlabel"></span>'+(tb.tag?'<span class="tag" data-i18n="badge_new"></span>':'');
+    b.onclick=()=>selectTab(tb.id);
+    rail.appendChild(b);
+  });
 });
+// Activate the first item on first paint.
+const firstBtn = document.querySelector(".navbtn"); if(firstBtn) firstBtn.classList.add("active");
 function selectTab(id){
   document.querySelectorAll(".navbtn").forEach(n=>n.classList.toggle("active",n.dataset.tab===id));
   document.querySelectorAll(".panel").forEach(p=>p.classList.toggle("active",p.dataset.panel===id));
   if(id==="windivert") wdRefresh();
-  if(id==="xray"){ api("/api/xray/status").then(r=>xrUI(!!r.running,r.socks)); }
+  if(id==="xray"){ xrEngineUI(); xrShowActive(); api("/api/xray/status").then(r=>{ if(r&&r.running) xrUI(true,r); else api("/api/singbox/status").then(s=>xrUI(!!(s&&s.running),s)); }); }
   if(id==="psiphon"){ api("/api/psiphon/status").then(r=>psiUI(!!r.running,r)); }
+  if(id==="cdnconfigs"){
+    api("/api/xray/cdnconfigs/status",{}).then(s=>{
+      if(!s) return;
+      if(s.phase>0 && !s.finished){ ccUI(true); if(!ccPoll) ccPoll=setInterval(ccPollOnce,700); ccPollOnce(); }
+      else { renderProgress(s); renderTopCards(s.rows||[]); if(s.saved&&s.saved.length) $("cc_save").value=s.saved.join("\n"); }
+    });
+  }
+  if(id==="configs"){ cfgmRender(); }
+  if(id==="proxy"){ savedSNIRender(); }
+  // On mobile, collapse the nav dropdown after a tab is chosen.
+  const rail=$("rail"); if(rail) rail.classList.remove("navopen");
 }
+// Hamburger toggles the mobile nav dropdown.
+$("navToggle").onclick=(e)=>{ e.stopPropagation(); $("rail").classList.toggle("navopen"); };
+// Tapping outside the open nav closes it.
+document.addEventListener("click",(e)=>{
+  const rail=$("rail");
+  if(rail && rail.classList.contains("navopen") && !rail.contains(e.target) && e.target.id!=="navToggle"){
+    rail.classList.remove("navopen");
+  }
+});
 
 /* ===================== helpers ===================== */
+let _apiInFlight = 0;
+function _gprog(){ const el=document.getElementById("gprog"); if(el) el.classList.toggle("busy", _apiInFlight>0); }
 async function api(path, body){
+  _apiInFlight++; _gprog();
   try{
     const r = await fetch(path,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body||{})});
     return await r.json();
   }catch(e){ return {error:String(e)}; }
+  finally{ _apiInFlight=Math.max(0,_apiInFlight-1); _gprog(); }
 }
+// Copy text to the clipboard with a graceful fallback for non-https contexts.
+async function copyText(s){
+  if(!s) return false;
+  try{ await navigator.clipboard.writeText(s); return true; }
+  catch(e){
+    const ta=document.createElement("textarea"); ta.value=s; ta.style.position="fixed"; ta.style.opacity="0";
+    document.body.appendChild(ta); ta.select(); try{document.execCommand("copy");}catch(_){return false;}
+    document.body.removeChild(ta); return true;
+  }
+}
+// Toast-style flash for the per-row Copy buttons.
+function flash(el, msg){
+  if(!el) return;
+  const orig=el.textContent; el.textContent=msg; el.style.color="var(--success)";
+  setTimeout(()=>{ el.textContent=orig; el.style.color=""; }, 1200);
+}
+window.copyConfig = async function(encoded, btn){
+  const ok = await copyText(decodeURIComponent(encoded));
+  if(ok) flash(btn, "✓");
+};
 const num = v => { const n=parseInt(v,10); return isNaN(n)?0:n; };
 const esc = s => String(s==null?"":s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
 const fmtBytes = n => { n=Number(n)||0; const u=["B","KB","MB","GB"]; let i=0; while(n>=1024&&i<u.length-1){n/=1024;i++;} return (i?n.toFixed(1):n)+" "+u[i]; };
 const dash = "\u2014";
 const state = {proxy:false, splus:false};
+
+/* ===================== header xray pill (accessible everywhere) ===================== */
+async function refreshHdrXray(){
+  try{
+    let running=false, label="off";
+    const rx = await (await fetch("/api/xray/status",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"})).json();
+    if(rx && rx.running){ running=true; label = rx.socks ? "xray · "+rx.socks : "xray on"; }
+    if(!running){
+      const rs = await (await fetch("/api/singbox/status",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"})).json();
+      if(rs && rs.running){ running=true; label = rs.tun ? "sing-box · TUN" : "sing-box"; }
+    }
+    const pill=$("hdrXray"), stateEl=$("hdrXrayState"), stop=$("hdrXrayStop"), start=$("hdrXrayStart");
+    pill.className="xpill "+(running?"on":"off");
+    stateEl.textContent=running?label:"off";
+    stop.hidden=!running;
+    if(start) start.hidden=running;
+  }catch(e){}
+}
+$("hdrXrayStop").onclick = async ()=>{
+  await api("/api/xray/stop", {});
+  await api("/api/singbox/stop", {});
+  refreshHdrXray();
+  if(typeof xrUI === "function") xrUI(false);
+};
+// TUN toggle in the bar mirrors the XRay Core engine selector.
+$("hdrTun").onchange = ()=>{
+  const tun=$("hdrTun").checked;
+  if($("xr_engine")) $("xr_engine").value = tun ? "singbox" : "xray";
+  if($("xr_tun")) $("xr_tun").checked = tun;
+  if(typeof xrEngineUI==="function") xrEngineUI();
+};
+// Start from the bar: uses the connected config + current engine/TUN choice.
+$("hdrXrayStart").onclick = async ()=>{
+  if(typeof xrStartEngine==="function"){ await xrStartEngine(); }
+  refreshHdrXray();
+};
+setInterval(refreshHdrXray, 3500);
+setTimeout(refreshHdrXray, 200);
 
 /* ===================== console / SSE ===================== */
 const logEl=$("log"); let connState="connecting";
@@ -865,7 +1468,7 @@ connectSSE();
 
 /* ===================== status poll ===================== */
 async function poll(){
-  const p=await api("/api/proxy/status"); state.proxy=!!p.running; setHead("Proxy", state.proxy);
+  const p=await api("/api/proxy/status"); state.proxy=!!p.running; setHead("Proxy", state.proxy); proxyUI(state.proxy);
   const s=await api("/api/splus/status"); state.splus=!!s.running; setHead("Splus", state.splus);
   if(s.running){ $("s_rx").textContent=fmtBytes(s.rx); $("s_tx").textContent=fmtBytes(s.tx); $("s_roleview").textContent="role: "+(s.role||""); }
 }
@@ -976,36 +1579,709 @@ $("x_go").onclick=async()=>{
     (r.error?'<div class="k">'+esc(t("r_error"))+'</div><div class="v bad">'+esc(r.error)+'</div>':'')+
     '</div></div>';
 };
+$("x_update").onclick=async()=>{
+  $("x_massmeta").textContent=t("c_loading");
+  const r=await api("/api/xray/update-configs",{limit:300});
+  if(r.error){ $("x_massmeta").innerHTML='<span class="bad">'+esc(r.error)+'</span>'; return; }
+  const cfgs=r.configs||[];
+  const cur=$("x_uris").value.trim();
+  $("x_uris").value = (cur ? cur+"\n" : "") + cfgs.join("\n");
+  $("x_massmeta").innerHTML='<span class="ok">+'+cfgs.length+' '+esc(t("c_configs_added"))+'</span>';
+};
 $("x_massgo").onclick=async()=>{
-  $("x_massgo").disabled=true; $("x_massmeta").textContent=t("c_scanning"); $("x_massout").innerHTML="";
-  const r=await api("/api/xray/mass",{uris:$("x_uris").value,timeout:num($("x_mto").value)});
+  $("x_massgo").disabled=true; $("x_massmeta").textContent=t("c_testing"); $("x_massout").innerHTML="";
+  const speeds=$("x_mspeeds").checked;
+  const r=await api("/api/xray/mass",{uris:$("x_uris").value,bin_path:$("x_bin").value.trim(),
+    test_url:$("x_mtesturl").value.trim(),direct:!$("x_mtunnel").checked,
+    proxy_host:$("x_ph").value.trim(),proxy_port:num($("x_pp").value),timeout:num($("x_mto").value),
+    with_speeds:speeds,download_bytes:num($("x_mdb").value),upload_bytes:num($("x_mub").value)});
   $("x_massgo").disabled=false;
   if(r.error){ $("x_massmeta").textContent=""; $("x_massout").innerHTML='<div class="result bad">'+esc(r.error)+'</div>'; return; }
-  $("x_massmeta").textContent=r.ok+"/"+r.total+" "+t("m_reachable");
-  const rows=(r.results||[]).map(x=>'<tr>'+
-    '<td>'+esc(x.name||x.host||"?")+'</td>'+
-    '<td class="'+(x.ok?"ok":"bad")+'">'+(x.ok?t("st_ok"):dash)+'</td>'+
-    '<td class="'+(x.ok?"cy":"")+'">'+(x.ping_ms<0?dash:x.ping_ms+" ms")+'</td>'+
-    '<td>'+(x.relay_ms<0?dash:x.relay_ms+" ms")+'</td>'+
-    '<td>'+(x.ok?'<button class="act btn-alt" style="padding:5px 12px" onclick="xrayUse(\''+encodeURIComponent(x.uri)+'\')">'+esc(t("c_use"))+'</button>':esc(x.error||""))+'</td></tr>').join("");
-  $("x_massout").innerHTML='<table><thead><tr><th>'+esc(t("th_config"))+'</th><th>'+esc(t("th_result"))+'</th><th>'+esc(t("th_ping"))+'</th><th>'+esc(t("th_relay"))+'</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>';
+  $("x_massmeta").textContent=r.ok+"/"+r.total+" "+t("m_working");
+  const cards=(r.results||[]).slice().sort((a,b)=>(b.ok-a.ok)|| ((a.relay_ms<0?9e9:a.relay_ms)-(b.relay_ms<0?9e9:b.relay_ms))).map(x=>{
+    const spd = speeds ? '<b>⬇ '+(x.down_kbps>0?Math.round(x.down_kbps/1000*100)/100+'Mb/s':dash)+'</b><b>⬆ '+(x.up_kbps>0?Math.round(x.up_kbps/1000*100)/100+'Mb/s':dash)+'</b>' : '';
+    return '<div class="sitecard'+(x.ok?'':' down')+'"><div class="ic">'+(x.ok?'✓':'•')+'</div>'+
+      '<div><div class="host">'+esc(x.name||x.host||"?")+'</div><div class="sub">'+
+        '<b>'+(x.ok?'<span class="cy">'+esc(t("st_ok"))+'</span>':esc(x.error||t("st_failed")))+'</b>'+
+        '<b>🏓 '+(x.ping_ms<0?dash:x.ping_ms+'ms')+'</b><b>⏱ '+(x.relay_ms<0?dash:x.relay_ms+'ms')+'</b>'+
+        '<b>'+esc(t("th_http"))+': '+(x.http_status||dash)+'</b>'+spd+'</div></div>'+
+      '<div class="acts">'+
+        (x.ok&&x.uri?'<button class="rl" onclick="copyConfig(\''+encodeURIComponent(x.uri)+'\',this)">'+esc(t("c_copy"))+'</button>':'')+
+        (x.ok&&x.uri?'<button class="conn" onclick="xrayConnect(\''+encodeURIComponent(x.uri)+'\')">'+esc(t("c_connect"))+'</button>':'')+
+      '</div></div>';
+  }).join("");
+  $("x_massout").innerHTML='<div class="cardscroll">'+cards+'</div>';
 };
-function xrayUse(u){ const uri=decodeURIComponent(u); $("xr_uri").value=uri; $("x_uri").value=uri; }
-
-function xrUI(running,addr){
+// Connect = start the chosen config on the device, routed the same way the test was.
+let xrActiveURI = "";
+function xrNameFromURI(uri){ const h=uri.indexOf("#"); if(h>=0){ try{return decodeURIComponent(uri.slice(h+1));}catch(e){return uri.slice(h+1);} } return uri.slice(0,40)+"…"; }
+function xrShowActive(){
+  const el=$("xr_active"); if(!el) return;
+  if(xrActiveURI){ el.className="infobox ok"; el.textContent=t("xray_run_active")+" "+xrNameFromURI(xrActiveURI); }
+  else { el.className="infobox"; el.textContent=t("xray_run_none"); }
+}
+function xrEngineUI(){
+  const sb=$("xr_engine").value==="singbox";
+  $("xr_tunrow").style.display = sb ? "" : "none";
+  $("xr_xrayopts").style.display = sb ? "none" : "";
+  $("xr_tunwarn").style.display = (sb && $("xr_tun").checked) ? "" : "none";
+}
+async function xrStartEngine(){
+  if(!xrActiveURI){ $("xr_out").innerHTML='<div class="result bad">'+esc(t("xray_run_none"))+'</div>'; selectTab("configs"); return; }
+  const engine=$("xr_engine").value;
+  $("xr_out").innerHTML='<div class="result cy">'+esc(t("c_connecting"))+'</div>';
+  let r;
+  if(engine==="singbox"){
+    r=await api("/api/singbox/start",{uri:xrActiveURI,bin_path:$("sb_bin").value.trim(),tun:$("xr_tun").checked,socks_port:num($("xr_sp").value)});
+  } else {
+    r=await api("/api/xray/start",{uri:xrActiveURI,bin_path:$("x_bin").value.trim(),socks_port:num($("xr_sp").value),listen_host:$("xr_lh").value.trim(),direct:true});
+  }
+  if(r&&r.error){ $("xr_out").innerHTML='<div class="result bad">'+esc(r.error)+'</div>'; xrUI(false); return; }
+  xrUI(true,r); refreshHdrXray();
+}
+// Called from Library Connect / CDN cards: set the active config and start it.
+async function xrayConnect(u){
+  xrActiveURI=decodeURIComponent(u);
+  const xb=$("x_uri"); if(xb) xb.value=xrActiveURI;
+  xrShowActive();
+  await xrStartEngine();
+}
+function xrUI(running,st){
+  st=st||{};
   $("xr_start").disabled=running; $("xr_stop").disabled=!running;
   const pill=$("xr_pill"); pill.className="pill "+(running?"run":"off");
   pill.innerHTML='<span class="dot '+(running?"on":"")+'"></span>'+esc(running?t("c_running"):t("c_stopped"));
-  $("xr_out").innerHTML = running&&addr ? '<div class="result ok">SOCKS5: '+esc(addr)+'</div>' : "";
+  if(running){
+    const msg = st.tun ? esc(t("xr_tun_on")) : ("SOCKS5: 127.0.0.1:"+esc(st.socks||$("xr_sp").value));
+    $("xr_out").innerHTML='<div class="result ok">'+msg+(st.server?('  ·  '+esc(st.server)):'')+'</div>';
+  } else { $("xr_out").innerHTML=""; }
 }
-$("xr_start").onclick=async()=>{
-  const r=await api("/api/xray/start",{uri:$("xr_uri").value,bin_path:$("x_bin").value.trim(),
-    socks_port:num($("xr_sp").value),listen_host:$("xr_lh").value.trim(),direct:$("xr_direct").checked,
-    proxy_host:$("x_ph").value.trim(),proxy_port:num($("x_pp").value)});
-  if(r.error){ $("xr_out").innerHTML='<div class="result bad">'+esc(r.error)+'</div>'; xrUI(false); return; }
-  xrUI(true,r.socks);
+$("xr_engine").onchange=xrEngineUI;
+$("xr_tun").onchange=()=>{ $("xr_tunwarn").style.display=$("xr_tun").checked?"":"none"; };
+$("xr_start").onclick=xrStartEngine;
+$("xr_stop").onclick=async()=>{ await api("/api/xray/stop"); await api("/api/singbox/stop"); xrUI(false); refreshHdrXray(); };
+$("sb_detect").onclick=async()=>{ const r=await api("/api/singbox/find",{}); $("sb_binmeta").innerHTML=r.found?'<span class="ok">✓ '+esc(r.path)+'</span>':'<span class="bad">'+esc(t("x_notfound"))+'</span>'; };
+$("sb_download").onclick=async()=>{ $("sb_binmeta").textContent=t("c_loading"); const r=await api("/api/singbox/download",{}); $("sb_binmeta").innerHTML=(r&&r.ok)?'<span class="ok">✓ '+esc(r.path)+'</span>':'<span class="bad">'+esc((r&&r.error)||"failed")+'</span>'; };
+
+/* ===================== cdn configs builder ===================== */
+const CF_HTTPS_PORTS = [443, 2053, 2083, 2087, 2096, 8443];
+function fmtMb(kbps){ return kbps>0 ? (Math.round(kbps/1000*100)/100)+" Mb/s" : "—"; }
+function fmtElapsed(ms){
+  const s = Math.floor((ms||0)/1000), m = Math.floor(s/60), r = s%60;
+  return (m<10?"0":"")+m+":"+(r<10?"0":"")+r;
+}
+function iconForScore(score, ok){
+  if(!ok) return "•";
+  if(score > 25) return "🚀";
+  if(score > 15) return "⚡";
+  if(score > 5)  return "🌐";
+  return "•";
+}
+function rankNumeral(i){
+  const circled = ["①","②","③","④","⑤","⑥","⑦","⑧","⑨","⑩"];
+  return i < circled.length ? circled[i] : String(i+1);
+}
+function renderTopCards(rows){
+  const top = rows.slice(0, 10);
+  $("cc_cards").innerHTML = top.length===0
+    ? '<div class="hint" style="color:var(--dim);text-align:center;padding:18px">'+esc(t("cc_waiting"))+'</div>'
+    : top.map((r,i)=>{
+      const stCls = r.status==="GOOD"?"good":(r.status==="DL-only"?"dlonly":(r.status==="UL-only"?"ulonly":"below"));
+      const colo = r.colo ? '📍 '+esc(r.colo) : '';
+      const ping = r.ping_ms>=0 ? '🏓 '+r.ping_ms+'ms' : '';
+      const dl = '⬇ '+fmtMb(r.down_kbps);
+      const ul = '⬆ '+fmtMb(r.up_kbps);
+      const status = r.status ? '<span class="stbadge '+stCls+'">'+esc(r.status)+'</span>' : '';
+      const score = r.ok ? (Math.round(r.score*100)/100).toFixed(2) : '—';
+      const ipPort = esc(r.ip) + (r.port && r.port!==443 ? '<span style="color:var(--dim);font-weight:400">:</span>'+r.port : '');
+      const copy = r.ok && r.uri
+        ? '<button class="iconbtn" title="'+esc(t("c_copy"))+'" onclick="copyConfig(\''+encodeURIComponent(r.uri)+'\', this)">📋</button>'
+        : '';
+      const connect = r.ok && r.uri
+        ? '<button class="act btn-go" style="padding:5px 12px;font-size:11px" onclick="xrayConnect(\''+encodeURIComponent(r.uri)+'\')">'+esc(t("c_connect"))+'</button>'
+        : '';
+      return '<div class="topcard'+(r.ok?'':' testing')+'">'+
+        '<div class="rank">'+rankNumeral(i)+'</div>'+
+        '<div class="ic">'+iconForScore(r.score, r.ok)+'</div>'+
+        '<div class="body"><div class="ttl">'+ipPort+' '+status+'</div>'+
+        '<div class="meta"><b>'+colo+'</b><b>'+ping+'</b><b>'+dl+'</b><b>'+ul+'</b></div></div>'+
+        '<div class="score">'+score+'</div>'+
+        '<div class="actions">'+copy+connect+'</div>'+
+      '</div>';
+    }).join("");
+  // Render the secondary list (positions 11+) when we have more rows.
+  const more = rows.slice(10).filter(r=>r.ok && r.uri);
+  const out = $("cc_out");
+  if(more.length===0){ out.innerHTML=""; return; }
+  out.innerHTML = '<div class="hint" style="margin:14px 0 6px;color:var(--dim)">'+esc(t("cc_more_results"))+' ('+more.length+')</div>' +
+    '<div style="display:flex;flex-direction:column;gap:5px">'+
+    more.map((r,j)=>{
+      const idx = 11+j;
+      const stCls = r.status==="GOOD"?"good":(r.status==="DL-only"?"dlonly":(r.status==="UL-only"?"ulonly":"below"));
+      const ipPort = esc(r.ip) + (r.port && r.port!==443 ? '<span style="color:var(--dim)">:</span>'+r.port : '');
+      const dl = fmtMb(r.down_kbps), ul = fmtMb(r.up_kbps);
+      const ping = r.ping_ms>=0 ? r.ping_ms+'ms' : '—';
+      return '<div style="display:grid;grid-template-columns:38px 1fr auto auto;gap:10px;align-items:center;padding:7px 12px;border:1px solid var(--border);border-radius:8px;background:rgba(16,19,27,.4);font-family:var(--mono);font-size:11.5px">'+
+        '<div style="color:var(--dim)">#'+idx+'</div>'+
+        '<div><b style="color:var(--bright)">'+ipPort+'</b> <span class="stbadge '+stCls+'" style="margin-inline-start:6px">'+esc(r.status||"")+'</span> · 🏓 '+ping+' · ⬇ '+dl+' · ⬆ '+ul+(r.colo?' · 📍 '+esc(r.colo):'')+'</div>'+
+        '<button class="iconbtn" title="'+esc(t("c_copy"))+'" onclick="copyConfig(\''+encodeURIComponent(r.uri)+'\', this)">📋</button>'+
+        '<button class="act btn-go" style="padding:4px 10px;font-size:10.5px" onclick="xrayConnect(\''+encodeURIComponent(r.uri)+'\')">'+esc(t("c_connect"))+'</button>'+
+      '</div>';
+    }).join("") + '</div>';
+}
+function renderProgress(s){
+  let pct=0, label=t("c_idle");
+  if(s.phase===1 && s.ping_total>0){
+    pct = Math.min(100, Math.round(s.ping_done/s.ping_total*100));
+    label = t("cc_phase1")+" "+s.ping_done+"/"+s.ping_total+" · "+pct+"%";
+  } else if(s.phase===2 && s.speed_total>0){
+    pct = Math.min(100, Math.round(s.speed_done/s.speed_total*100));
+    label = t("cc_phase2")+" "+s.speed_done+"/"+s.speed_total+" · "+pct+"%";
+  } else if(s.phase===3){
+    pct = 100;
+    label = s.cancelled ? t("cc_stopped") : t("cc_done");
+  }
+  $("cc_progfill").style.width = pct+"%";
+  // Paused state: dim the fill + relabel.
+  const bar=$("cc_progbar");
+  if(s.paused){
+    label = t("cc_paused")+" — "+label;
+    bar.classList.add("paused");
+  } else { bar.classList.remove("paused"); }
+  if(s.phase===1||s.phase===2){ bar.classList.add("running"); } else { bar.classList.remove("running"); }
+  $("cc_proglabel").textContent = label;
+}
+let ccPoll = null;
+function ccFormInputs(){
+  return ["cc_uri","cc_per","cc_ports","cc_top","cc_final","cc_pingconc","cc_conc","cc_pto","cc_db","cc_ub","cc_full","cc_cfports","cc_ranges"];
+}
+function ccUI(running){
+  $("cc_go").disabled = running;
+  $("cc_stop").disabled = !running;
+  $("cc_pause").disabled = !running;
+  ccFormInputs().forEach(id=>{ const el=$(id); if(el) el.disabled = running; });
+}
+function ccPortsToSend(){
+  if($("cc_cfports").checked) return CF_HTTPS_PORTS.slice();
+  return ($("cc_ports").value||"").split(/[,\s]+/).map(s=>parseInt(s,10)).filter(n=>n>0 && n<65536);
+}
+async function ccPollOnce(){
+  const s = await api("/api/xray/cdnconfigs/status",{});
+  if(!s) return;
+  renderProgress(s);
+  renderTopCards(s.rows||[]);
+  $("cc_elapsed").textContent = "⏱ "+fmtElapsed(s.elapsed_ms||0);
+  // Pause button label tracks current state.
+  $("cc_pause").textContent = s.paused ? t("c_resume") : t("c_pause");
+  if(s.err){ $("cc_meta").innerHTML='<span class="bad">'+esc(s.err)+'</span>'; }
+  else if(s.finished){
+    const ok=(s.rows||[]).filter(r=>r.ok).length, total=(s.rows||[]).length;
+    $("cc_meta").innerHTML = '<span class="ok">'+(s.cancelled?esc(t("cc_stopped")):esc(t("cc_done")))+' · '+ok+'/'+total+' '+esc(t("m_working"))+'</span>';
+    $("cc_save").value = (s.saved||[]).join("\n");
+  } else if(s.paused){
+    $("cc_meta").innerHTML='<span style="color:var(--warning)">'+esc(t("cc_paused"))+'</span>';
+  } else {
+    $("cc_meta").textContent = t("c_scanning");
+  }
+  if(s.finished){
+    if(ccPoll){ clearInterval(ccPoll); ccPoll=null; }
+    ccUI(false);
+  }
+}
+$("cc_go").onclick=async()=>{
+  $("cc_cards").innerHTML=""; $("cc_save").value=""; $("cc_out").innerHTML="";
+  $("cc_progfill").style.width="0"; $("cc_proglabel").textContent=t("c_starting"); $("cc_elapsed").textContent="";
+  const ports = ccPortsToSend();
+  if(ports.length===0){ $("cc_meta").innerHTML='<span class="bad">'+esc(t("cc_no_ports"))+'</span>'; return; }
+  const perRange = $("cc_full").checked ? 0 : num($("cc_per").value);
+  const r=await api("/api/xray/cdnconfigs",{uri:$("cc_uri").value,bin_path:$("x_bin").value.trim(),
+    ranges:$("cc_ranges").value,
+    per_range_limit:perRange, ports:ports,
+    top_for_speed:num($("cc_top").value), final_count:num($("cc_final").value),
+    ping_concurrency:num($("cc_pingconc").value), speed_concurrency:num($("cc_conc").value),
+    ping_timeout:num($("cc_pto").value),
+    download_bytes:num($("cc_db").value), upload_bytes:num($("cc_ub").value)});
+  if(r.error){ $("cc_meta").innerHTML='<span class="bad">'+esc(r.error)+'</span>'; return; }
+  ccUI(true);
+  if(ccPoll) clearInterval(ccPoll);
+  ccPoll = setInterval(ccPollOnce, 700);
+  ccPollOnce();
 };
-$("xr_stop").onclick=async()=>{ await api("/api/xray/stop"); xrUI(false); };
+$("cc_pause").onclick=async()=>{
+  // Decide based on current button label (cheap state).
+  const want = ($("cc_pause").textContent.trim() === t("c_resume")) ? "resume" : "pause";
+  await api("/api/xray/cdnconfigs/"+want,{});
+  ccPollOnce();
+};
+$("cc_stop").onclick=async()=>{ await api("/api/xray/cdnconfigs/stop",{}); };
+$("cc_copy").onclick=async()=>{
+  const v=$("cc_save").value;
+  if(!v){ $("cc_copymeta").textContent=t("cc_empty"); return; }
+  try{ await navigator.clipboard.writeText(v); $("cc_copymeta").innerHTML='<span class="ok">'+esc(t("cc_copied"))+'</span>'; }
+  catch(e){ $("cc_save").select(); document.execCommand("copy"); $("cc_copymeta").innerHTML='<span class="ok">'+esc(t("cc_copied"))+'</span>'; }
+};
+// Toggling the CF-ports preset visually fills the ports input for clarity.
+$("cc_cfports").onchange=()=>{
+  if($("cc_cfports").checked){ $("cc_ports").dataset.saved=$("cc_ports").value; $("cc_ports").value=CF_HTTPS_PORTS.join(","); $("cc_ports").disabled=true; }
+  else { $("cc_ports").disabled=false; $("cc_ports").value=$("cc_ports").dataset.saved||"443"; }
+};
+// "Full range" disables the per-range input for clarity.
+$("cc_full").onchange=()=>{ $("cc_per").disabled=$("cc_full").checked; };
+
+/* ===================== site scanner ===================== */
+let sitesLast = [];
+let sitesPoll = null;
+function siteCardHTML(r, idx){
+  const cf = r.on_cloudflare ? '<span class="cy">☁ CF</span>' : '';
+  const ping = r.reachable ? (r.latency>=0?r.latency+'ms':'ok') : (esc(r.error||t("st_failed")));
+  const relay = (r.relay_ms!=null) ? (r.relay_ms<0?'✗':r.relay_ms+'ms') : '—';
+  const ip = r.ip ? esc(r.ip) : '—';
+  const enc = encodeURIComponent(r.domain), ipenc = encodeURIComponent(r.ip||"");
+  return '<div class="sitecard'+(r.reachable?'':' down')+'" data-host="'+esc(r.domain)+'">'+
+    '<div class="ic">'+(r.on_cloudflare?'☁':(r.reachable?'🌐':'•'))+'</div>'+
+    '<div><div class="host">'+esc(r.domain)+'</div>'+
+      '<div class="sub"><b>📍 '+ip+'</b><b>🏓 '+t("r_ping")+': '+ping+'</b><b>⏱ '+t("r_relay")+': <span class="relayv">'+relay+'</span></b>'+cf+'</div></div>'+
+    '<div class="acts">'+
+      (r.reachable?'<button class="rl" onclick="siteRelay(\''+enc+'\','+(r.port||443)+',this)">'+esc(t("c_relay"))+'</button>':'')+
+      (r.reachable?'<button class="conn" onclick="siteConnect(\''+enc+'\',\''+ipenc+'\')">'+esc(t("c_connect"))+'</button>':'')+
+      (r.reachable?'<button class="sv" onclick="siteSave(\''+enc+'\',\''+ipenc+'\','+(r.latency>=0?r.latency:-1)+')">'+esc(t("c_save"))+'</button>':'')+
+    '</div></div>';
+}
+function sitesRender(rows){
+  sitesLast = rows;
+  if(!rows.length){ $("sites_cards").innerHTML=''; return; }
+  // Cloudflare sites first, then reachable, then by latency.
+  const sorted = rows.slice().sort((a,b)=>
+    (b.on_cloudflare-a.on_cloudflare) || (b.reachable-a.reachable) ||
+    ((a.latency<0?9e9:a.latency)-(b.latency<0?9e9:b.latency)));
+  $("sites_cards").innerHTML = sorted.map(siteCardHTML).join("");
+}
+function sitesProg(pct, indet){
+  const bar=$("sites_progbar"); bar.style.display="";
+  bar.classList.toggle("indet", !!indet);
+  if(!indet) $("sites_progfill").style.width=Math.max(2,Math.round(pct))+"%";
+}
+async function sitesPollOnce(){
+  const s=await api("/api/sites/scan/status",{});
+  if(!s) return;
+  const pct = s.total ? (s.done/s.total*100) : 0;
+  sitesProg(pct,false);
+  $("sites_meta").innerHTML='<span class="ok">'+s.done+'/'+s.total+' · '+(s.reachable||0)+' '+esc(t("st_reachable"))+' · '+(s.cf||0)+' ☁</span>';
+  sitesRender(s.rows||[]);
+  if(s.finished){
+    clearInterval(sitesPoll); sitesPoll=null;
+    $("sites_go").disabled=false; $("sites_stop").disabled=true;
+    setTimeout(()=>{ $("sites_progbar").style.display="none"; }, 700);
+  }
+}
+$("sites_go").onclick=async()=>{
+  $("sites_cards").innerHTML=""; $("sites_go").disabled=true; $("sites_stop").disabled=false;
+  sitesProg(0,false);
+  const r=await api("/api/sites/scan",{domains:$("sites_in").value,port:num($("sites_port").value),timeout:num($("sites_to").value)});
+  if(r.error){ $("sites_meta").innerHTML='<span class="bad">'+esc(r.error)+'</span>'; $("sites_go").disabled=false; $("sites_stop").disabled=true; $("sites_progbar").style.display="none"; return; }
+  if(sitesPoll) clearInterval(sitesPoll);
+  sitesPoll=setInterval(sitesPollOnce,450); sitesPollOnce();
+};
+$("sites_stop").onclick=async()=>{ await api("/api/sites/scan/stop",{}); };
+$("sites_captcha").onclick=()=>{ $("sites_in").value = CAPTCHA_LIST.split("\n").filter(d=>d && !d.startsWith("#")).join("\n"); };
+$("sites_onlycf").onclick=async()=>{
+  const ips=[...new Set(sitesLast.filter(r=>r.on_cloudflare&&r.ip).map(r=>r.ip))];
+  if(ips.length && await copyText(ips.join("\n"))) $("sites_meta").innerHTML='<span class="ok">'+ips.length+' '+esc(t("cc_copied"))+'</span>';
+};
+// Per-row relay test (xray-free TCP+TLS+HEAD timing) — writes into the card.
+window.siteRelay = async function(hostEnc, port, btn){
+  const host=decodeURIComponent(hostEnc);
+  const card=btn.closest(".sitecard"); const rv=card?card.querySelector(".relayv"):null;
+  if(rv) rv.textContent="…";
+  const r=await api("/api/sni/relay-test",{connect_ip:host,connect_port:port,fake_sni:host,timeout:6});
+  const ms = (r&&r.ok) ? (r.relay_ms>=0?r.relay_ms:(r.tls_ms>=0?r.tls_ms:r.tcp_ms)) : -1;
+  if(rv) rv.textContent = ms<0?'✗':ms+'ms';
+  // remember on the data row
+  const row=sitesLast.find(x=>x.domain===host); if(row) row.relay_ms=ms;
+};
+// Connect: use this hostname as the spoof SNI in the SNI Tunnel and start it.
+window.siteConnect = function(hostEnc, ipEnc){
+  const host=decodeURIComponent(hostEnc||""), ip=decodeURIComponent(ipEnc||"");
+  if(host) $("p_sni").value=host;
+  if(ip){ $("p_ci").value=ip; }
+  selectTab("proxy");
+  setTimeout(()=>{ if($("p_start") && !$("p_start").disabled) $("p_start").click(); }, 150);
+};
+// Save: add to the persisted Saved SNI list shown in the SNI Tunnel tab.
+window.siteSave = function(hostEnc, ipEnc, ping){
+  const host=decodeURIComponent(hostEnc), ip=decodeURIComponent(ipEnc||"");
+  const row=sitesLast.find(x=>x.domain===host);
+  savedSNIAdd({host, ip, ping, relay:(row&&row.relay_ms!=null)?row.relay_ms:null});
+};
+
+/* ===================== saved SNI list (SNI Tunnel) ===================== */
+let SAVED_SNI = [];
+let savedSaveT=null;
+function savedSNISave(){ clearTimeout(savedSaveT); savedSaveT=setTimeout(()=>api("/api/sni/saved/save", SAVED_SNI), 350); }
+async function savedSNILoad(){
+  const r=await api("/api/sni/saved/load",{});
+  if(r && r.found && Array.isArray(r.data)) SAVED_SNI=r.data;
+  savedSNIRender();
+}
+function savedSNIAdd(item){
+  if(!item.host) return;
+  if(SAVED_SNI.some(x=>x.host===item.host && x.ip===item.ip)){ savedSNIRender(); return; }
+  SAVED_SNI.unshift(item); savedSNISave(); savedSNIRender();
+  $("saved_sni_meta").innerHTML='<span class="ok">+1</span>';
+}
+function savedSNIRender(){
+  const el=$("saved_sni_list"); if(!el) return;
+  if(!SAVED_SNI.length){ el.innerHTML='<div class="hint" style="color:var(--dim);padding:14px">'+esc(t("saved_sni_empty"))+'</div>'; return; }
+  el.innerHTML = SAVED_SNI.map((r,i)=>{
+    const enc=encodeURIComponent(r.host), ipenc=encodeURIComponent(r.ip||"");
+    const ping=(r.ping!=null&&r.ping>=0)?r.ping+'ms':'—';
+    const relay=(r.relay!=null&&r.relay>=0)?r.relay+'ms':'—';
+    return '<div class="sitecard" data-host="'+esc(r.host)+'">'+
+      '<div class="ic">📡</div>'+
+      '<div><div class="host">'+esc(r.host)+'</div>'+
+        '<div class="sub"><b>📍 '+(r.ip?esc(r.ip):'—')+'</b><b>🏓 '+t("r_ping")+': '+ping+'</b><b>⏱ '+t("r_relay")+': <span class="relayv">'+relay+'</span></b></div></div>'+
+      '<div class="acts">'+
+        '<button class="rl" onclick="siteRelay(\''+enc+'\',443,this)">'+esc(t("c_relay"))+'</button>'+
+        '<button class="conn" onclick="siteConnect(\''+enc+'\',\''+ipenc+'\')">'+esc(t("c_connect"))+'</button>'+
+        '<button class="sv" onclick="savedSNIDel(\''+enc+'\')">✕</button>'+
+      '</div></div>';
+  }).join("");
+}
+window.savedSNIDel=function(hostEnc){ const host=decodeURIComponent(hostEnc); SAVED_SNI=SAVED_SNI.filter(x=>x.host!==host); savedSNISave(); savedSNIRender(); };
+$("saved_sni_clear").onclick=()=>{ if(!SAVED_SNI.length) return; if(!confirm(t("saved_sni_clear_c"))) return; SAVED_SNI=[]; savedSNISave(); savedSNIRender(); };
+
+/* ===================== cloudflare worker maker ===================== */
+$("cfw_gen").onclick=async()=>{ const r=await api("/api/edge/uuid",{}); if(r.uuid){ $("cfw_uuid").value=r.uuid; $("cfw_meta").innerHTML='<span class="ok">UUID ✓</span>'; } };
+$("cfw_toedge").onclick=async()=>{ if($("cfw_uuid").value.trim()){ if(await copyText($("cfw_uuid").value.trim())) $("cfw_meta").innerHTML='<span class="ok">UUID '+esc(t("cc_copied"))+'</span>'; } };
+
+/* ===================== modal helper ===================== */
+function showModal(html){ $("modalBox").innerHTML=html; $("modal").classList.add("show"); }
+function closeModal(){ $("modal").classList.remove("show"); }
+$("modal").onclick=(e)=>{ if(e.target.id==="modal") closeModal(); };
+window.closeModal = closeModal;
+
+/* ===================== config manager ===================== */
+let CFGM = { groups:[{id:"g1",name:"Default",configs:[]}], cur:"g1", active:"" };
+let cfgmSel = new Set();
+let cfgmLastClicked = null;
+let cfgmSaveT = null;
+function cfgmSave(){ clearTimeout(cfgmSaveT); cfgmSaveT=setTimeout(()=>api("/api/configs/store/save", CFGM), 400); }
+async function cfgmLoad(){
+  const r = await api("/api/configs/store/load",{});
+  if(r && r.found && r.data && Array.isArray(r.data.groups) && r.data.groups.length){ CFGM = r.data; if(!CFGM.cur) CFGM.cur=CFGM.groups[0].id; }
+  cfgmRender();
+}
+function curGroup(){ return CFGM.groups.find(g=>g.id===CFGM.cur) || CFGM.groups[0]; }
+function uid(){ return "c"+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function nameOf(uri){
+  const h = uri.indexOf("#");
+  if(h>=0){ try{ return decodeURIComponent(uri.slice(h+1)); }catch(e){ return uri.slice(h+1); } }
+  return uri.slice(0,42)+"…";
+}
+function protoOf(uri){ const i=uri.indexOf("://"); return i>0?uri.slice(0,i):"?"; }
+function cfgmAddLinks(links, _grp){
+  const g = curGroup(); let added=0;
+  const have = new Set(g.configs.map(c=>c.uri));
+  links.forEach(uri=>{ uri=uri.trim(); if(!uri||have.has(uri)) return; if(!/^(vless|vmess|trojan|ss):\/\//.test(uri)) return;
+    g.configs.push({id:uid(), uri, name:nameOf(uri)}); have.add(uri); added++; });
+  cfgmSave(); cfgmRender();
+  return added;
+}
+function cfgmRenderGroups(){
+  $("cfgm_groups").innerHTML = CFGM.groups.map(g=>
+    '<div class="grouptab'+(g.id===CFGM.cur?' active':'')+'" data-g="'+g.id+'">'+esc(g.name)+' <span style="opacity:.5">'+g.configs.length+'</span></div>'
+  ).join("");
+  document.querySelectorAll("#cfgm_groups .grouptab").forEach(el=>el.onclick=()=>{ CFGM.cur=el.dataset.g; cfgmSel.clear(); cfgmSave(); cfgmRender(); });
+}
+function cfgmRender(){
+  cfgmRenderGroups();
+  const g = curGroup();
+  $("cfgm_count").textContent = g.configs.length + " " + t("cfgm_in_group");
+  if(g.configs.length===0){ $("cfgm_list").innerHTML='<div class="hint" style="color:var(--dim);text-align:center;padding:20px">'+esc(t("cfgm_empty"))+'</div>'; return; }
+  $("cfgm_list").innerHTML = g.configs.map(c=>{
+    const isActive = CFGM.active===c.uri;
+    const isSel = cfgmSel.has(c.id);
+    const ping = (c.ping!=null) ? '<span class="pingv">'+(c.ping<0?'✗':c.ping+'ms')+'</span>' : '';
+    const spd = (c.down!=null&&c.down>0) ? '<span class="pingv" style="color:var(--accent2)">⬇'+(Math.round(c.down/1000*10)/10)+(c.up>0?' ⬆'+(Math.round(c.up/1000*10)/10):'')+'Mb/s</span>' : '';
+    return '<div class="cfgrow'+(isActive?' active':'')+(isSel?' sel':'')+'" data-id="'+c.id+'">'+
+      '<div class="dotc"></div>'+
+      '<div class="nm">'+esc(c.name)+ping+spd+' <small>'+esc(protoOf(c.uri))+'</small></div>'+
+      '<div class="acts">'+
+        '<button class="iconbtn" data-act="connect" title="'+esc(t("c_connect"))+'">▶</button>'+
+        '<button class="iconbtn" data-act="test" title="'+esc(t("c_test"))+'">⏱</button>'+
+        '<button class="iconbtn" data-act="qr" title="QR">▦</button>'+
+        '<button class="iconbtn" data-act="copy" title="'+esc(t("c_copy"))+'">📋</button>'+
+        '<button class="iconbtn" data-act="edit" title="'+esc(t("c_edit"))+'">✎</button>'+
+        '<button class="iconbtn" data-act="del" title="'+esc(t("c_delete"))+'">✕</button>'+
+      '</div></div>';
+  }).join("");
+  // Wire rows.
+  const ids = curGroup().configs.map(c=>c.id);
+  document.querySelectorAll("#cfgm_list .cfgrow").forEach(row=>{
+    const id=row.dataset.id;
+    row.onclick=(e)=>{
+      if(e.target.closest(".acts")) return;
+      if(e.shiftKey && cfgmLastClicked){
+        const a=ids.indexOf(cfgmLastClicked), b=ids.indexOf(id);
+        if(a>=0&&b>=0){ const [lo,hi]=a<b?[a,b]:[b,a]; for(let i=lo;i<=hi;i++) cfgmSel.add(ids[i]); }
+      } else if(e.ctrlKey||e.metaKey){
+        if(cfgmSel.has(id)) cfgmSel.delete(id); else cfgmSel.add(id);
+        cfgmLastClicked=id;
+      } else { cfgmSel.clear(); cfgmSel.add(id); cfgmLastClicked=id; }
+      cfgmRender();
+    };
+    row.oncontextmenu=(e)=>{ e.preventDefault();
+      // Right-clicking a row outside the selection selects just it.
+      if(!cfgmSel.has(id)){ cfgmSel.clear(); cfgmSel.add(id); cfgmLastClicked=id; cfgmRender(); }
+      cfgmCtxMenu(e.clientX, e.clientY, id);
+    };
+    row.querySelectorAll(".acts .iconbtn").forEach(b=>b.onclick=(e)=>{ e.stopPropagation(); cfgmAction(b.dataset.act, id); });
+  });
+}
+// Context menu acting on the current selection (or the right-clicked row).
+function cfgmSelIds(){ return [...cfgmSel].filter(id=>cfgmCfg(id)); }
+function cfgmCtxMenu(x, y, id){
+  closeCtx();
+  const n = cfgmSel.size>1 ? cfgmSel.size : 1;
+  const suffix = cfgmSel.size>1 ? " ("+cfgmSel.size+")" : "";
+  const items=[
+    ["connect", "▶ "+t("c_connect")],
+    ["test", "⏱ "+t("c_test")+suffix],
+    ["speed", "📶 "+t("c_speedtest")+suffix],
+    ["qr", "▦ "+t("c_share")],
+    ["edit", "✎ "+t("c_edit")],
+    ["copy", "📋 "+t("c_copy")+suffix],
+    ["del", "✕ "+t("c_delete")+suffix],
+  ];
+  const m=document.createElement("div"); m.className="ctxmenu"; m.id="ctxmenu";
+  m.innerHTML=items.map(([a,l])=>'<div class="ctxitem" data-act="'+a+'">'+esc(l)+'</div>').join("");
+  document.body.appendChild(m);
+  const vw=window.innerWidth, vh=window.innerHeight, r=m.getBoundingClientRect();
+  m.style.left=Math.min(x,vw-r.width-8)+"px"; m.style.top=Math.min(y,vh-r.height-8)+"px";
+  m.querySelectorAll(".ctxitem").forEach(it=>it.onclick=()=>{ const a=it.dataset.act; closeCtx(); cfgmBulk(a, id); });
+}
+function closeCtx(){ const m=$("ctxmenu"); if(m) m.remove(); }
+document.addEventListener("click", closeCtx);
+document.addEventListener("scroll", closeCtx, true);
+// Apply an action to all selected configs (single connect/edit/qr act on the row).
+async function cfgmBulk(act, id){
+  const ids = cfgmSel.size>1 ? cfgmSelIds() : [id];
+  if(act==="connect"||act==="edit"||act==="qr"){ cfgmAction(act, id); return; }
+  if(act==="del"){ const g=curGroup(); const del=new Set(ids); g.configs=g.configs.filter(c=>!del.has(c.id)); ids.forEach(i=>cfgmSel.delete(i)); cfgmSave(); cfgmRender(); return; }
+  if(act==="copy"){ const uris=ids.map(i=>cfgmCfg(i)).filter(Boolean).map(c=>c.uri); if(await copyText(uris.join("\n"))) $("cfgm_count").innerHTML='<span class="ok">'+uris.length+' '+esc(t("cc_copied"))+'</span>'; return; }
+  if(act==="test"||act==="speed"){
+    $("cfgm_count").textContent=t("c_testing");
+    for(const i of ids){ const c=cfgmCfg(i); if(!c) continue; await cfgmPing(c, act==="speed"); cfgmRender(); }
+    cfgmSave(); $("cfgm_count").textContent=t("cc_done"); return;
+  }
+}
+function cfgmCfg(id){ return curGroup().configs.find(c=>c.id===id); }
+async function cfgmAction(act, id){
+  const c = cfgmCfg(id); if(!c) return;
+  if(act==="connect"){ CFGM.active=c.uri; cfgmSave(); cfgmRender(); xrayConnect(encodeURIComponent(c.uri)); }
+  else if(act==="copy"){ if(await copyText(c.uri)) {} }
+  else if(act==="del"){ const g=curGroup(); g.configs=g.configs.filter(x=>x.id!==id); cfgmSel.delete(id); cfgmSave(); cfgmRender(); }
+  else if(act==="qr"){ cfgmShare(id); }
+  else if(act==="edit"){ cfgmEdit(id); }
+  else if(act==="test"){ await cfgmPing(c); cfgmRender(); cfgmSave(); }
+}
+// cfgmPing: relay+tcp+tls (fast). withSpeed also measures down/up through xray.
+async function cfgmPing(c, withSpeed){
+  const p = await api("/api/uri/parse",{uri:c.uri});
+  if(!p.valid){ c.ping=-1; return; }
+  const r = await api("/api/sni/relay-test",{connect_ip:p.host,connect_port:p.port,fake_sni:p.sni||p.host,timeout:5});
+  if(r && r.ok){ c.ping = r.relay_ms>=0?r.relay_ms:(r.tls_ms>=0?r.tls_ms:r.tcp_ms); c.tcp=r.tcp_ms; c.tls=r.tls_ms; }
+  else { c.ping=-1; c.tcp=-1; c.tls=-1; }
+  if(withSpeed){
+    const m = await api("/api/xray/mass",{uris:c.uri,direct:true,with_speeds:true,download_bytes:1500000,upload_bytes:800000,timeout:14});
+    const row = (m && m.results && m.results[0]) || null;
+    if(row){ c.down=row.down_kbps; c.up=row.up_kbps; if(row.relay_ms>=0) c.ping=row.relay_ms; }
+  }
+}
+async function cfgmShare(id){
+  const c=cfgmCfg(id); if(!c) return;
+  showModal('<h3>'+esc(c.name)+'</h3><div id="qrslot" class="hint">'+esc(t("c_loading"))+'</div>'+
+    '<textarea readonly>'+esc(c.uri)+'</textarea>'+
+    '<div class="row"><button class="act btn-alt" onclick="(async()=>{await copyText('+JSON.stringify(c.uri)+');})()" >'+esc(t("c_copy"))+'</button>'+
+    '<button class="act btn-ghost" onclick="closeModal()">'+esc(t("c_close"))+'</button></div>');
+  const r=await api("/api/qr",{text:c.uri});
+  const slot=$("qrslot");
+  if(slot){ slot.outerHTML = r&&r.png ? '<img src="'+r.png+'" alt="QR" width="280" height="280">' : '<div class="bad">'+esc((r&&r.error)||"QR failed")+'</div>'; }
+}
+// ---- share-link parse/build for the structured editor ----
+function b64e(s){ try{ return btoa(unescape(encodeURIComponent(s))); }catch(e){ return btoa(s); } }
+function b64d(s){ s=s.replace(/-/g,'+').replace(/_/g,'/'); while(s.length%4) s+='='; try{ return decodeURIComponent(escape(atob(s))); }catch(e){ try{return atob(s);}catch(_){return "";} } }
+function splitHP(hp){ const i=hp.lastIndexOf(":"); return i<0?[hp,"443"]:[hp.slice(0,i),hp.slice(i+1)]; }
+function parseLink(uri){
+  uri=(uri||"").trim();
+  const o={protocol:"?",name:"",address:"",port:443,id:"",method:"",aid:0,net:"tcp",security:"none",
+    sni:"",hostHeader:"",path:"",flow:"",fp:"",alpn:"",encryption:"none",pbk:"",sid:"",raw:uri};
+  try{
+    if(uri.startsWith("vmess://")){
+      o.protocol="vmess";
+      let body=uri.slice(8); const h=body.indexOf("#"); if(h>=0) body=body.slice(0,h);
+      const j=JSON.parse(b64d(body));
+      o.name=j.ps||""; o.address=j.add||""; o.port=+j.port||443; o.id=j.id||""; o.aid=+j.aid||0;
+      o.net=j.net||"tcp"; o.path=j.path||""; o.hostHeader=j.host||""; o.sni=j.sni||j.host||"";
+      o.security=(j.tls==="tls"||j.tls===true)?"tls":"none"; o.alpn=j.alpn||""; o.fp=j.fp||""; o.encryption=j.scy||"auto";
+      return o;
+    }
+    if(uri.startsWith("ss://")){
+      o.protocol="shadowsocks";
+      let body=uri.slice(5); const h=body.indexOf("#"); if(h>=0){ o.name=decodeURIComponent(body.slice(h+1)); body=body.slice(0,h); }
+      const q=body.indexOf("?"); if(q>=0) body=body.slice(0,q);
+      if(body.includes("@")){
+        const at=body.lastIndexOf("@"); const dec=b64d(body.slice(0,at)); const ci=dec.indexOf(":");
+        o.method=dec.slice(0,ci); o.id=dec.slice(ci+1); const [hh,pp]=splitHP(body.slice(at+1)); o.address=hh; o.port=+pp||443;
+      } else {
+        const dec=b64d(body); const at=dec.lastIndexOf("@"); const mp=dec.slice(0,at); const ci=mp.indexOf(":");
+        o.method=mp.slice(0,ci); o.id=mp.slice(ci+1); const [hh,pp]=splitHP(dec.slice(at+1)); o.address=hh; o.port=+pp||443;
+      }
+      return o;
+    }
+    const m=/^(vless|trojan):\/\/([^@]+)@([^:/?#]+):(\d+)(\?[^#]*)?(#.*)?$/.exec(uri);
+    if(m){
+      o.protocol=m[1]; o.id=decodeURIComponent(m[2]); o.address=m[3]; o.port=+m[4]||443;
+      if(m[6]) try{ o.name=decodeURIComponent(m[6].slice(1)); }catch(e){ o.name=m[6].slice(1); }
+      const q=new URLSearchParams(m[5]?m[5].slice(1):"");
+      o.security=q.get("security")||"none"; o.sni=q.get("sni")||""; o.net=q.get("type")||"tcp";
+      o.path=q.get("path")||""; o.hostHeader=q.get("host")||""; o.flow=q.get("flow")||"";
+      o.fp=q.get("fp")||""; o.alpn=q.get("alpn")||""; o.encryption=q.get("encryption")||"none";
+      o.pbk=q.get("pbk")||""; o.sid=q.get("sid")||"";
+      return o;
+    }
+  }catch(e){}
+  return o;
+}
+function buildLink(o){
+  if(o.protocol==="vmess"){
+    const j={v:"2",ps:o.name||"",add:o.address,port:String(o.port),id:o.id,aid:String(o.aid||0),
+      scy:o.encryption||"auto",net:o.net||"tcp",type:"none",host:o.hostHeader||"",path:o.path||"",
+      tls:o.security==="tls"?"tls":"",sni:o.sni||"",alpn:o.alpn||"",fp:o.fp||""};
+    return "vmess://"+b64e(JSON.stringify(j));
+  }
+  if(o.protocol==="shadowsocks"){
+    return "ss://"+b64e(o.method+":"+o.id)+"@"+o.address+":"+o.port+(o.name?("#"+encodeURIComponent(o.name)):"");
+  }
+  const q=new URLSearchParams();
+  q.set("security",o.security||"none");
+  if(o.protocol==="vless") q.set("encryption",o.encryption||"none");
+  if(o.sni)q.set("sni",o.sni); if(o.net)q.set("type",o.net); if(o.path)q.set("path",o.path);
+  if(o.hostHeader)q.set("host",o.hostHeader); if(o.flow)q.set("flow",o.flow);
+  if(o.fp)q.set("fp",o.fp); if(o.alpn)q.set("alpn",o.alpn); if(o.pbk)q.set("pbk",o.pbk); if(o.sid)q.set("sid",o.sid);
+  return o.protocol+"://"+encodeURIComponent(o.id)+"@"+o.address+":"+o.port+"?"+q.toString()+(o.name?("#"+encodeURIComponent(o.name)):"");
+}
+function fld(label,id,val,ph){ return '<label style="display:block;text-align:left;margin-bottom:9px"><span class="lbl">'+esc(label)+'</span><input id="'+id+'" value="'+esc(val||"")+'" placeholder="'+esc(ph||"")+'"></label>'; }
+function sel(label,id,val,opts){ return '<label style="display:block;text-align:left;margin-bottom:9px"><span class="lbl">'+esc(label)+'</span><select id="'+id+'">'+opts.map(o=>'<option value="'+esc(o)+'"'+(o===val?' selected':'')+'>'+esc(o||"(none)")+'</option>').join("")+'</select></label>'; }
+function cfgmEdit(id){
+  const c=cfgmCfg(id); if(!c) return;
+  const o=parseLink(c.uri);
+  const isVmess=o.protocol==="vmess", isSS=o.protocol==="shadowsocks", isVT=(o.protocol==="vless"||o.protocol==="trojan");
+  let body='<h3>'+esc(t("cfgm_edit_t"))+' · <span class="cy">'+esc(o.protocol)+'</span></h3><div class="editform" style="max-height:62vh;overflow:auto;text-align:left">';
+  body+=fld(t("ed_name"),"ed_name",o.name,"display name");
+  if(o.protocol==="?"){
+    body+='<div class="warnbox" style="margin:6px 0">'+esc(t("ed_unparsed"))+'</div><label style="display:block;text-align:left"><span class="lbl">URI</span><textarea id="ed_raw">'+esc(c.uri)+'</textarea></label>';
+  } else {
+    body+=fld(t("ed_address"),"ed_addr",o.address,"host / IP");
+    body+=fld(t("ed_port"),"ed_port",o.port,"443");
+    if(isSS){ body+=fld(t("ed_password"),"ed_id",o.id); body+=sel(t("ed_method"),"ed_method",o.method,["aes-256-gcm","aes-128-gcm","chacha20-ietf-poly1305","2022-blake3-aes-256-gcm","none"]); }
+    else if(o.protocol==="trojan"){ body+=fld(t("ed_password"),"ed_id",o.id); }
+    else { body+=fld(t("ed_uuid"),"ed_id",o.id); }
+    if(isVmess){ body+=sel(t("ed_encryption"),"ed_enc",o.encryption,["auto","aes-128-gcm","chacha20-poly1305","none","zero"]); body+=fld("alterId","ed_aid",o.aid); }
+    if(o.protocol==="vless"){ body+=sel(t("ed_encryption"),"ed_enc",o.encryption,["none"]); body+=fld(t("ed_flow"),"ed_flow",o.flow,"xtls-rprx-vision / (blank)"); }
+    if(!isSS){
+      body+=sel(t("ed_network"),"ed_net",o.net,["tcp","ws","grpc","h2","httpupgrade","xhttp"]);
+      body+=fld(t("ed_path"),"ed_path",o.path,"/path or service name");
+      body+=fld(t("ed_hosthdr"),"ed_host",o.hostHeader,"host header / authority");
+      body+=sel(t("ed_security"),"ed_sec",o.security,["none","tls","reality"]);
+      body+=fld(t("ed_sni"),"ed_sni",o.sni,"server name");
+      body+=sel(t("ed_fp"),"ed_fp",o.fp,["","chrome","firefox","safari","ios","edge","random","randomized"]);
+      body+=fld(t("ed_alpn"),"ed_alpn",o.alpn,"h2,http/1.1");
+      if(o.security==="reality"||o.pbk){ body+=fld("publicKey (pbk)","ed_pbk",o.pbk); body+=fld("shortId (sid)","ed_sid",o.sid); }
+    }
+  }
+  body+='</div><textarea id="ed_preview" readonly style="margin-top:10px;min-height:60px;font-size:11px;color:var(--dim)"></textarea>';
+  body+='<div class="row"><button class="act btn-go" id="ed_save">'+esc(t("c_save"))+'</button>'+
+        '<button class="act btn-alt" id="ed_copy">'+esc(t("c_copy"))+'</button>'+
+        '<button class="act btn-ghost" onclick="closeModal()">'+esc(t("c_close"))+'</button></div>';
+  showModal(body);
+  function gather(){
+    if(o.protocol==="?"){ return ($("ed_raw")?$("ed_raw").value.trim():c.uri); }
+    const n={...o};
+    n.name=$("ed_name").value; n.address=$("ed_addr").value.trim(); n.port=num($("ed_port").value)||o.port;
+    if($("ed_id")) n.id=$("ed_id").value.trim();
+    if($("ed_method")) n.method=$("ed_method").value;
+    if($("ed_enc")) n.encryption=$("ed_enc").value;
+    if($("ed_aid")) n.aid=num($("ed_aid").value);
+    if($("ed_flow")) n.flow=$("ed_flow").value.trim();
+    if($("ed_net")) n.net=$("ed_net").value;
+    if($("ed_path")) n.path=$("ed_path").value.trim();
+    if($("ed_host")) n.hostHeader=$("ed_host").value.trim();
+    if($("ed_sec")) n.security=$("ed_sec").value;
+    if($("ed_sni")) n.sni=$("ed_sni").value.trim();
+    if($("ed_fp")) n.fp=$("ed_fp").value;
+    if($("ed_alpn")) n.alpn=$("ed_alpn").value.trim();
+    if($("ed_pbk")) n.pbk=$("ed_pbk").value.trim();
+    if($("ed_sid")) n.sid=$("ed_sid").value.trim();
+    return buildLink(n);
+  }
+  function refresh(){ if($("ed_preview")) $("ed_preview").value=gather(); }
+  // live preview
+  $("modalBox").querySelectorAll("input,select,textarea").forEach(el=>{ el.oninput=refresh; el.onchange=refresh; });
+  refresh();
+  $("ed_copy").onclick=async()=>{ await copyText(gather()); };
+  $("ed_save").onclick=()=>{ const v=gather().trim(); if(v){ c.uri=v; c.name=nameOf(v); c.ping=null; c.tcp=c.tls=c.down=c.up=null; cfgmSave(); cfgmRender(); } closeModal(); };
+}
+// Buttons
+$("cfgm_addgroup").onclick=()=>{ const n=prompt(t("cfgm_group_name")); if(!n) return; const id="g"+Date.now().toString(36); CFGM.groups.push({id,name:n,configs:[]}); CFGM.cur=id; cfgmSave(); cfgmRender(); };
+$("cfgm_rengroup").onclick=()=>{ const g=curGroup(); const n=prompt(t("cfgm_group_name"), g.name); if(n){ g.name=n; cfgmSave(); cfgmRender(); } };
+$("cfgm_delgroup").onclick=()=>{ if(CFGM.groups.length<=1){ return; } if(!confirm(t("cfgm_del_confirm"))) return; CFGM.groups=CFGM.groups.filter(x=>x.id!==CFGM.cur); CFGM.cur=CFGM.groups[0].id; cfgmSel.clear(); cfgmSave(); cfgmRender(); };
+$("cfgm_addpaste").onclick=()=>{ const n=cfgmAddLinks($("cfgm_paste").value.split("\n")); $("cfgm_paste").value=""; $("cfgm_count").textContent="+"+n; setTimeout(cfgmRender,800); };
+$("cfgm_subimport").onclick=async()=>{ const u=$("cfgm_suburl").value.trim(); if(!u) return; $("cfgm_count").textContent=t("c_loading");
+  const r=await api("/api/subscribe",{url:u,limit:500}); if(r.error){ $("cfgm_count").innerHTML='<span class="bad">'+esc(r.error)+'</span>'; return; }
+  const n=cfgmAddLinks(r.configs||[]); $("cfgm_count").innerHTML='<span class="ok">+'+n+' '+esc(t("c_configs_added"))+'</span>'; };
+$("cfgm_update").onclick=async()=>{ $("cfgm_count").textContent=t("c_loading"); const r=await api("/api/xray/update-configs",{limit:300});
+  if(r.error){ $("cfgm_count").innerHTML='<span class="bad">'+esc(r.error)+'</span>'; return; }
+  const links=(r.configs||[]);
+  // Put fetched configs into a brand-new timestamped group.
+  const d=new Date(); const stamp=d.toLocaleDateString()+" "+(""+d.getHours()).padStart(2,"0")+":"+(""+d.getMinutes()).padStart(2,"0");
+  const id="g"+Date.now().toString(36);
+  CFGM.groups.push({id,name:t("cfgm_latest_grp")+" "+stamp,configs:[]});
+  CFGM.cur=id; cfgmSel.clear();
+  const n=cfgmAddLinks(links);
+  $("cfgm_count").innerHTML='<span class="ok">+'+n+' '+esc(t("c_configs_added"))+'</span>'; };
+$("cfgm_selall").onclick=()=>{ const g=curGroup(); cfgmSel=new Set(g.configs.map(c=>c.id)); cfgmRender(); };
+$("cfgm_sni").onclick=async()=>{ $("cfgm_count").textContent=t("c_loading");
+  const r=await api("/api/subscribe",{url:"https://raw.githubusercontent.com/macan-dev/EasySNI/refs/heads/main/Configs/Spoof-Configs.txt",limit:500});
+  if(r.error){ $("cfgm_count").innerHTML='<span class="bad">'+esc(r.error)+'</span>'; return; }
+  const id="g"+Date.now().toString(36);
+  CFGM.groups.push({id,name:t("cfgm_sni_grp"),configs:[]}); CFGM.cur=id; cfgmSel.clear();
+  const n=cfgmAddLinks(r.configs||[]);
+  $("cfgm_count").innerHTML='<span class="ok">+'+n+' '+esc(t("c_configs_added"))+'</span>'; };
+$("cfgm_testall").onclick=async()=>{ const g=curGroup(); $("cfgm_count").textContent=t("c_testing");
+  for(const c of g.configs){ await cfgmPing(c); cfgmRender(); } cfgmSave(); $("cfgm_count").textContent=t("cc_done"); };
+$("cfgm_copyall").onclick=async()=>{ const g=curGroup(); if(await copyText(g.configs.map(c=>c.uri).join("\n"))) $("cfgm_count").innerHTML='<span class="ok">'+esc(t("cc_copied"))+'</span>'; };
+// Drag & drop
+(function(){
+  const dz=$("cfgm_drop"); if(!dz) return;
+  ["dragenter","dragover"].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add("drag");}));
+  ["dragleave","drop"].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove("drag");}));
+  dz.addEventListener("drop", async e=>{
+    const f=e.dataTransfer.files[0];
+    if(f){ const txt=await f.text(); const n=cfgmAddLinks(txt.split("\n")); $("cfgm_count").textContent="+"+n; }
+    else { const txt=e.dataTransfer.getData("text"); if(txt){ const n=cfgmAddLinks(txt.split("\n")); $("cfgm_count").textContent="+"+n; } }
+  });
+})();
+// Enter-to-connect the selected config.
+document.addEventListener("keydown",e=>{
+  const cfgPanel=document.querySelector('.panel[data-panel="configs"]');
+  if(!cfgPanel||!cfgPanel.classList.contains("active")) return;
+  if(e.target.tagName==="TEXTAREA"||e.target.tagName==="INPUT") return;
+  if((e.ctrlKey||e.metaKey) && (e.key==="a"||e.key==="A")){
+    e.preventDefault(); const g=curGroup(); cfgmSel=new Set(g.configs.map(c=>c.id)); cfgmRender(); return;
+  }
+  if(e.key==="Enter" && cfgmSel.size===1){ const id=[...cfgmSel][0]; cfgmAction("connect", id); }
+});
 
 /* ===================== psiphon ===================== */
 function psiUI(running,r){
@@ -1028,6 +2304,7 @@ $("sn_go").onclick=async()=>{
   if(r.error){ $("sn_out").innerHTML='<div class="result bad">'+esc(r.error)+'</div>'; return; }
   $("sn_out").innerHTML='<div class="result"><div class="kv">'+
     '<div class="k">'+esc(t("r_host"))+'</div><div class="v">'+esc(r.host)+'</div>'+
+    (r.ip?'<div class="k">'+esc(t("r_ip"))+'</div><div class="v cy">'+esc(r.ip)+'</div>':'')+
     '<div class="k">'+esc(t("r_status"))+'</div><div class="v '+(r.ok?"ok":"bad")+'">'+esc(r.ok?t("st_reachable"):t("st_failed"))+'</div>'+
     '<div class="k">'+esc(t("r_latency"))+'</div><div class="v">'+(r.latency<0?dash:r.latency+" ms")+'</div>'+
     (r.error?'<div class="k">'+esc(t("r_error"))+'</div><div class="v bad">'+esc(r.error)+'</div>':'')+
@@ -1067,11 +2344,15 @@ $("ms_go").onclick=async()=>{
   $("ms_go").disabled=false;
   if(r.error){ $("ms_meta").textContent=""; $("ms_out").innerHTML='<div class="result bad">'+esc(r.error)+'</div>'; return; }
   $("ms_meta").textContent=r.ok+"/"+r.total+" "+t("m_reachable");
-  const rows=(r.results||[]).map(x=>'<tr>'+
-    '<td>'+esc(x.sni)+'</td><td class="'+(x.ok?"ok":"bad")+'">'+(x.ok?t("st_ok"):dash)+'</td>'+
-    '<td>'+(x.tcp_ms<0?dash:x.tcp_ms)+'</td><td>'+(x.tls_ms<0?dash:x.tls_ms)+'</td>'+
-    '<td>'+(x.http_ok?t("yes"):t("no"))+'</td><td class="bad">'+esc(x.error||"")+'</td></tr>').join("");
-  $("ms_out").innerHTML='<table><thead><tr><th>'+esc(t("th_sni"))+'</th><th>'+esc(t("th_result"))+'</th><th>TCP ms</th><th>TLS ms</th><th>'+esc(t("th_http"))+'</th><th>'+esc(t("r_error"))+'</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  const msip=$("ms_ip").value.trim();
+  const cards=(r.results||[]).slice().sort((a,b)=>(b.ok-a.ok)).map(x=>
+    '<div class="sitecard'+(x.ok?'':' down')+'"><div class="ic">'+(x.ok?'🌐':'•')+'</div>'+
+    '<div><div class="host">'+esc(x.sni)+'</div><div class="sub">'+
+      '<b>'+(x.ok?'<span class="cy">'+esc(t("st_ok"))+'</span>':esc(x.error||t("st_failed")))+'</b>'+
+      '<b>TCP '+(x.tcp_ms<0?dash:x.tcp_ms+'ms')+'</b><b>TLS '+(x.tls_ms<0?dash:x.tls_ms+'ms')+'</b>'+
+      '<b>'+esc(t("th_http"))+': '+(x.http_ok?t("yes"):t("no"))+'</b></div></div>'+
+    '<div class="acts">'+(x.ok?'<button class="conn" onclick="siteConnect(\''+encodeURIComponent(x.sni)+'\',\''+encodeURIComponent(msip)+'\')">'+esc(t("c_connect"))+'</button>':'')+'</div></div>').join("");
+  $("ms_out").innerHTML='<div class="cardscroll">'+cards+'</div>';
 };
 
 /* ===================== cloudflare scan ===================== */
@@ -1085,11 +2366,13 @@ $("cf_go").onclick=async()=>{
   if(r.error){ $("cf_meta").textContent=""; $("cf_out").innerHTML='<div class="result bad">'+esc(r.error)+'</div>'; return; }
   $("cf_meta").textContent=r.ok+"/"+r.total+" "+t("m_working");
   const all=(r.results||[]); const ordered=all.filter(x=>x.ok).concat(all.filter(x=>!x.ok)).slice(0,400);
-  const rows=ordered.map(x=>'<tr>'+
-    '<td>'+esc(x.ip)+'</td><td class="'+(x.ok?"ok":"bad")+'">'+(x.ok?t("st_ok"):dash)+'</td>'+
-    '<td>'+(x.latency<0?dash:x.latency+" ms")+'</td><td>'+(x.tls_ok?t("yes"):t("no"))+'</td>'+
-    '<td class="bad">'+esc(x.error||"")+'</td></tr>').join("");
-  $("cf_out").innerHTML='<table><thead><tr><th>'+esc(t("th_ip"))+'</th><th>'+esc(t("th_result"))+'</th><th>'+esc(t("th_lat"))+'</th><th>'+esc(t("th_tlscol"))+'</th><th>'+esc(t("r_error"))+'</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  const cards=ordered.map(x=>
+    '<div class="sitecard'+(x.ok?'':' down')+'"><div class="ic">'+(x.ok?'⊞':'•')+'</div>'+
+    '<div><div class="host">'+esc(x.ip)+'</div><div class="sub">'+
+      '<b>'+(x.ok?'<span class="cy">'+esc(t("st_ok"))+'</span>':esc(x.error||t("st_failed")))+'</b>'+
+      '<b>🏓 '+(x.latency<0?dash:x.latency+'ms')+'</b><b>TLS: '+(x.tls_ok?t("yes"):t("no"))+'</b></div></div>'+
+    '<div class="acts">'+(x.ok?'<button class="rl" onclick="copyConfig(\''+encodeURIComponent(x.ip)+'\',this)">'+esc(t("c_copy"))+'</button><button class="conn" onclick="siteConnect(\'\',\''+encodeURIComponent(x.ip)+'\')">'+esc(t("c_connect"))+'</button>':'')+'</div></div>').join("");
+  $("cf_out").innerHTML='<div class="cardscroll">'+cards+'</div>';
 };
 
 /* ===================== cdn edge test ===================== */
@@ -1107,14 +2390,14 @@ $("ce_go").onclick=async()=>{
   $("ce_best").disabled=!ceBest;
   $("ce_meta").textContent=r.ok+"/"+r.total+" "+t("m_reachable")+(ceBest?(" · "+t("ce_best_lbl")+" "+esc(ceBest)):"");
   const list=(r.results||[]).slice(0,400);
-  const rows=list.map((x,idx)=>'<tr'+(x.ok&&x.ip===ceBest?' style="background:rgba(47,230,200,.08)"':'')+'>'+
-    '<td>'+(x.ok&&x.ip===ceBest?'★ ':'')+esc(x.ip)+'</td>'+
-    '<td class="'+(x.ok?"ok":"bad")+'">'+(x.ok?t("st_ok"):dash)+'</td>'+
-    '<td>'+(x.tcp_ms<0?dash:x.tcp_ms)+'</td><td>'+(x.tls_ms<0?dash:x.tls_ms)+'</td>'+
-    '<td class="'+(x.ok?"cy":"")+'">'+(x.ping_ms<0?dash:x.ping_ms+" ms")+'</td>'+
-    '<td>'+(x.http_status||dash)+'</td>'+
-    '<td>'+(x.ok?'<button class="act btn-alt" style="padding:5px 12px" onclick="cdnConnect(\''+esc(x.ip)+'\')">'+esc(t("c_connect"))+'</button>':esc(x.error||""))+'</td></tr>').join("");
-  $("ce_out").innerHTML='<table><thead><tr><th>'+esc(t("th_ip"))+'</th><th>'+esc(t("th_result"))+'</th><th>TCP ms</th><th>TLS ms</th><th>'+esc(t("th_ping"))+'</th><th>'+esc(t("th_http"))+'</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>';
+  const cards=list.map(x=>
+    '<div class="sitecard'+(x.ok?'':' down')+(x.ok&&x.ip===ceBest?'" style="border-color:rgba(47,230,200,.5);background:rgba(47,230,200,.07)':'')+'"><div class="ic">'+(x.ok&&x.ip===ceBest?'★':(x.ok?'⚡':'•'))+'</div>'+
+    '<div><div class="host">'+esc(x.ip)+'</div><div class="sub">'+
+      '<b>'+(x.ok?'<span class="cy">'+esc(t("st_ok"))+'</span>':esc(x.error||t("st_failed")))+'</b>'+
+      '<b>TCP '+(x.tcp_ms<0?dash:x.tcp_ms+'ms')+'</b><b>🏓 '+(x.ping_ms<0?dash:x.ping_ms+'ms')+'</b>'+
+      '<b>'+esc(t("th_http"))+': '+(x.http_status||dash)+'</b></div></div>'+
+    '<div class="acts">'+(x.ok?'<button class="conn" onclick="cdnConnect(\''+esc(x.ip)+'\')">'+esc(t("c_connect"))+'</button>':'')+'</div></div>').join("");
+  $("ce_out").innerHTML='<div class="cardscroll">'+cards+'</div>';
 };
 $("ce_best").onclick=()=>{ if(ceBest) cdnConnect(ceBest); };
 async function cdnConnect(ip){
@@ -1128,30 +2411,6 @@ async function cdnConnect(ip){
     connect_ip:ip,connect_port:port,mode:"cdn_fronting",fake_sni:front,real_host:real});
   proxyUI(!r.error);
 }
-
-/* ===================== uri parser ===================== */
-let lastParsed=null;
-$("u_go").onclick=async()=>{
-  const r=await api("/api/uri/parse",{uri:$("u_uri").value});
-  if(!r.valid){ lastParsed=null; $("u_send").disabled=true; $("u_out").innerHTML='<div class="result bad">'+esc(r.error||"invalid")+'</div>'; return; }
-  lastParsed=r; $("u_send").disabled=false;
-  $("u_out").innerHTML='<div class="result"><div class="kv">'+
-    '<div class="k">'+esc(t("r_protocol"))+'</div><div class="v cy">'+esc(r.protocol)+'</div>'+
-    '<div class="k">'+esc(t("r_host"))+'</div><div class="v">'+esc(r.host)+'</div>'+
-    '<div class="k">'+esc(t("r_port"))+'</div><div class="v">'+esc(r.port)+'</div>'+
-    '<div class="k">'+esc(t("r_uuid"))+'</div><div class="v">'+esc(r.uuid)+'</div>'+
-    '<div class="k">'+esc(t("r_sni"))+'</div><div class="v">'+esc(r.sni)+'</div>'+
-    '<div class="k">'+esc(t("r_transport"))+'</div><div class="v">'+esc(r.type)+'</div>'+
-    '<div class="k">'+esc(t("r_path"))+'</div><div class="v">'+esc(r.path)+'</div>'+
-    '<div class="k">'+esc(t("r_tls_f"))+'</div><div class="v '+(r.tls?"ok":"warn")+'">'+esc(r.tls?t("r_enabled"):t("r_none"))+'</div>'+
-    '</div></div>';
-};
-$("u_send").onclick=()=>{
-  if(!lastParsed) return;
-  $("p_ci").value=lastParsed.host; $("p_cp").value=lastParsed.port; $("p_sni").value=lastParsed.sni;
-  $("p_mode").value="passthrough";
-  selectTab("proxy");
-};
 
 /* ===================== windivert ===================== */
 async function wdRefresh(){
@@ -1171,8 +2430,65 @@ $("wd_refresh").onclick=wdRefresh;
 $("wd_install").onclick=async()=>{ await api("/api/windivert/install",{path:$("wd_path").value.trim()}); wdRefresh(); };
 $("wd_uninstall").onclick=async()=>{ await api("/api/windivert/uninstall"); wdRefresh(); };
 
+/* ===================== app config save/load ===================== */
+function collectConfig(){
+  const cfg={ _lang: LANG };
+  document.querySelectorAll("input,select,textarea").forEach(el=>{
+    if(!el.id) return;
+    cfg[el.id] = (el.type==="checkbox") ? el.checked : el.value;
+  });
+  return cfg;
+}
+function applyConfig(cfg){
+  if(!cfg || typeof cfg!=="object") return;
+  if(cfg._lang && cfg._lang!==LANG){ LANG=cfg._lang; try{localStorage.setItem("lang",LANG);}catch(e){} applyLang(); }
+  Object.keys(cfg).forEach(id=>{
+    if(id==="_lang") return;
+    const el=document.getElementById(id);
+    if(!el) return;
+    if(el.type==="checkbox") el.checked=!!cfg[id]; else el.value=cfg[id];
+  });
+  // refresh dependent UI (mode-specific fields, role fields)
+  try{ $("p_mode").onchange&&$("p_mode").onchange(); }catch(e){}
+  try{ $("s_role").onchange&&$("s_role").onchange(); }catch(e){}
+}
+$("cfg_save").onclick=async()=>{
+  $("cfg_meta").textContent=t("c_saving");
+  const r=await api("/api/config/save",{path:$("cfg_path").value.trim(),config:collectConfig()});
+  $("cfg_meta").innerHTML = r&&r.ok ? '<span class="ok">'+esc(t("cfg_saved"))+' '+esc(r.path||"")+'</span>'
+    : '<span class="bad">'+esc((r&&r.error)||"failed")+'</span>';
+};
+$("cfg_load").onclick=async()=>{
+  $("cfg_meta").textContent=t("c_loading");
+  const r=await api("/api/config/load",{path:$("cfg_path").value.trim()});
+  if(r&&r.found){ applyConfig(r.config); $("cfg_meta").innerHTML='<span class="ok">'+esc(t("cfg_loaded"))+' '+esc(r.path||"")+'</span>'; }
+  else $("cfg_meta").innerHTML='<span>'+esc(t("cfg_none"))+' '+esc(r&&r.path||"")+'</span>';
+};
+// Auto-save: persist every setting (debounced) whenever the user changes a field.
+let autoSaveT=null;
+function autoSave(){
+  const auto=$("cfg_auto"); if(auto && !auto.checked) return;
+  clearTimeout(autoSaveT);
+  autoSaveT=setTimeout(()=>{ api("/api/config/save",{path:($("cfg_path")?$("cfg_path").value.trim():""),config:collectConfig()}); }, 900);
+}
+document.addEventListener("input", e=>{ if(e.target && (e.target.tagName==="INPUT"||e.target.tagName==="TEXTAREA"||e.target.tagName==="SELECT")) autoSave(); });
+document.addEventListener("change", e=>{ if(e.target && (e.target.tagName==="INPUT"||e.target.tagName==="SELECT")) autoSave(); });
+
 /* ===================== init ===================== */
+// Per-scanner progress bars: wrap each synchronous scan button so its bar shows
+// while the request is in flight.
+[["ms_go","ms_prog"],["cf_go","cf_prog"],["ce_go","ce_prog"],["x_massgo","x_mass_prog"]].forEach(([btn,bar])=>{
+  const el=$(btn); if(!el||typeof el.onclick!=="function") return;
+  const orig=el.onclick;
+  el.onclick=async(e)=>{ const b=$(bar); if(b) b.style.display=""; try{ return await orig.call(el,e); } finally { if(b) setTimeout(()=>{b.style.display="none";},200); } };
+});
 applyLang();
+cfgmLoad();
+savedSNILoad();
+selectTab("configs");
+// Restore the saved app config on startup, if any.
+(async()=>{ try{ const r=await api("/api/config/load",{}); if(r&&r.found){ applyConfig(r.config);
+  const m=$("cfg_meta"); if(m) m.innerHTML='<span class="ok">'+esc(t("cfg_restored"))+'</span>'; } }catch(e){} })();
 </script>
 </body>
 </html>

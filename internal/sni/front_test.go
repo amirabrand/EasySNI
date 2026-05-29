@@ -76,6 +76,49 @@ func TestFrontTest(t *testing.T) {
 	}
 }
 
+// TestFrontTestTLSOnly verifies that a successful TLS handshake against a server
+// that never replies to HTTP still counts as reachable (the realistic CDN
+// fronting case where a worker only answers a specific WS path).
+func TestFrontTestTLSOnly(t *testing.T) {
+	ln, err := tls.Listen("tcp", "127.0.0.1:0", &tls.Config{Certificates: []tls.Certificate{testCert(t)}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	go func() {
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			go func(c net.Conn) {
+				defer c.Close()
+				tc := c.(*tls.Conn)
+				_ = tc.SetDeadline(time.Now().Add(2 * time.Second))
+				if err := tc.Handshake(); err != nil {
+					return
+				}
+				// Read whatever the client sent, then hang without responding.
+				buf := make([]byte, 512)
+				_, _ = tc.Read(buf)
+				time.Sleep(1500 * time.Millisecond)
+			}(c)
+		}
+	}()
+	host, p, _ := net.SplitHostPort(ln.Addr().String())
+	port, _ := strconv.Atoi(p)
+	res := FrontTest(host, port, "front.example.com", "real.example.net", 4*time.Second)
+	if !res.OK {
+		t.Fatalf("expected OK after TLS handshake (no HTTP needed), got error %q", res.Error)
+	}
+	if res.HTTPStatus != 0 {
+		t.Fatalf("expected no HTTP status, got %d", res.HTTPStatus)
+	}
+	if res.TLSms < 0 || res.PingMs < 0 {
+		t.Fatalf("timings should reflect TLS: %+v", res)
+	}
+}
+
 func TestParseHTTPStatus(t *testing.T) {
 	cases := map[string]int{
 		"HTTP/1.1 200 OK\r\n":      200,

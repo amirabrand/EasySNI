@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"sort"
@@ -10,10 +11,16 @@ import (
 	"sync/atomic"
 	"time"
 
+	"encoding/base64"
 	"ezsni/internal/desync"
+
+	"github.com/skip2/go-qrcode"
+
+	"ezsni/internal/edgetunnel"
 	"ezsni/internal/netutil"
 	"ezsni/internal/proxy"
 	"ezsni/internal/psiphon"
+	"ezsni/internal/singbox"
 	"ezsni/internal/sni"
 	"ezsni/internal/splus"
 	"ezsni/internal/windivert"
@@ -221,7 +228,7 @@ func (s *Server) handleProxyStart(body json.RawMessage) (any, error) {
 		req.ListenHost = "127.0.0.1"
 	}
 	if req.ListenPort == 0 {
-		req.ListenPort = 10808
+		req.ListenPort = 40443
 	}
 	if req.ConnectPort == 0 {
 		req.ConnectPort = 443
@@ -439,18 +446,64 @@ func (s *Server) handleXrayTest(body json.RawMessage) (any, error) {
 
 func (s *Server) handleXrayMass(body json.RawMessage) (any, error) {
 	var req struct {
-		URIs    string `json:"uris"`
-		Timeout int    `json:"timeout"`
+		URIs          string `json:"uris"`
+		BinPath       string `json:"bin_path"`
+		TestURL       string `json:"test_url"`
+		ProxyHost     string `json:"proxy_host"`
+		ProxyPort     int    `json:"proxy_port"`
+		Direct        bool   `json:"direct"`
+		Timeout       int    `json:"timeout"`
+		WithSpeeds    bool   `json:"with_speeds"`
+		DownloadBytes int    `json:"download_bytes"`
+		UploadBytes   int    `json:"upload_bytes"`
 	}
 	if err := json.Unmarshal(body, &req); err != nil {
 		return nil, err
 	}
 	uris := splitLines(req.URIs)
 	if len(uris) == 0 {
-		return nil, errors.New("paste at least one vless:// or vmess:// URI")
+		return nil, errors.New("paste at least one vless/vmess/trojan/ss URI")
 	}
-	s.log("Mass URI test: "+strconv.Itoa(len(uris))+" configs", "ACCENT")
-	rows := xray.MassTest(uris, timeoutOf(req.Timeout, 6))
+	// When testing through the SNI Tunnel, auto-detect the running tunnel's
+	// actual listen address so the user never has to re-type the port. An
+	// explicit proxy_port in the request still wins if provided.
+	if !req.Direct && req.ProxyPort == 0 {
+		s.mu.Lock()
+		p := s.proxy
+		s.mu.Unlock()
+		host, port := "", 0
+		if p != nil {
+			host, port = p.ListenHostPort()
+		}
+		if port == 0 {
+			return nil, errors.New("SNI Tunnel isn't running — start it first, or tick Direct to test without it")
+		}
+		if req.ProxyHost == "" {
+			req.ProxyHost = host
+		}
+		req.ProxyPort = port
+	}
+	via := "SNI tunnel " + req.ProxyHost + ":" + strconv.Itoa(req.ProxyPort)
+	if req.Direct {
+		via = "direct"
+	}
+	s.log("Mass URI test (xray, "+via+"): "+strconv.Itoa(len(uris))+" configs → "+req.TestURL, "ACCENT")
+	rows, err := xray.MassXray(xray.MassXrayOptions{
+		URIs:          uris,
+		BinPath:       req.BinPath,
+		TestURL:       strings.TrimSpace(req.TestURL),
+		ProxyHost:     req.ProxyHost,
+		ProxyPort:     req.ProxyPort,
+		Direct:        req.Direct,
+		TimeoutSec:    req.Timeout,
+		WithSpeeds:    req.WithSpeeds,
+		DownloadBytes: req.DownloadBytes,
+		UploadBytes:   req.UploadBytes,
+	}, s.bus.Log)
+	if err != nil {
+		s.log("✗ "+err.Error(), "ERROR")
+		return nil, err
+	}
 	var ok int
 	for _, r := range rows {
 		if r.OK {
@@ -460,14 +513,362 @@ func (s *Server) handleXrayMass(body json.RawMessage) (any, error) {
 	best := ""
 	if len(rows) > 0 && rows[0].OK {
 		best = rows[0].URI
+		s.log("✓ best config "+rows[0].Name+" ("+strconv.Itoa(rows[0].RelayMs)+" ms)", "OK")
 	}
-	s.log("Mass URI test complete: "+strconv.Itoa(ok)+"/"+strconv.Itoa(len(rows))+" reachable", "ACCENT")
+	s.log("Mass URI test complete: "+strconv.Itoa(ok)+"/"+strconv.Itoa(len(rows))+" working", "ACCENT")
 	return map[string]any{"results": rows, "ok": ok, "total": len(rows), "best": best}, nil
+}
+
+func (s *Server) handleXrayCDNConfigs(body json.RawMessage) (any, error) {
+	var req struct {
+		URI             string `json:"uri"`
+		BinPath         string `json:"bin_path"`
+		Ranges          string `json:"ranges"`
+		PerRangeLimit   int    `json:"per_range_limit"`
+		Ports           []int  `json:"ports"`
+		TopForSpeed     int    `json:"top_for_speed"`
+		FinalCount      int    `json:"final_count"`
+		DownloadBytes   int    `json:"download_bytes"`
+		UploadBytes     int    `json:"upload_bytes"`
+		PingTimeoutSec  int    `json:"ping_timeout"`
+		SpeedTimeoutSec int    `json:"speed_timeout"`
+		PingConcurrency int    `json:"ping_concurrency"`
+		SpeedConc       int    `json:"speed_concurrency"`
+	}
+	if err := json.Unmarshal(body, &req); err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(req.URI) == "" {
+		return nil, errors.New("uri required (a vless/vmess/trojan/ss share link backed by Cloudflare)")
+	}
+
+	s.cdnMu.Lock()
+	if s.cdnCancel != nil {
+		s.cdnMu.Unlock()
+		return nil, errors.New("a CDN configs scan is already running — stop it first")
+	}
+	state := &xray.CDNScanState{StartedAt: time.Now(), Phase: 1}
+	ctx, cancel := context.WithCancel(context.Background())
+	s.cdn = state
+	s.cdnCancel = cancel
+	s.cdnMu.Unlock()
+
+	s.log("CDN configs scan starting…", "ACCENT")
+	go func() {
+		defer func() {
+			s.cdnMu.Lock()
+			s.cdnCancel = nil
+			s.cdnMu.Unlock()
+		}()
+		_ = xray.TestCDNConfigs(ctx, state, xray.CDNConfigsOptions{
+			URI:             req.URI,
+			BinPath:         req.BinPath,
+			Ranges:          req.Ranges,
+			PerRangeLimit:   req.PerRangeLimit,
+			Ports:           req.Ports,
+			TopForSpeed:     req.TopForSpeed,
+			FinalCount:      req.FinalCount,
+			DownloadBytes:   req.DownloadBytes,
+			UploadBytes:     req.UploadBytes,
+			PingTimeoutSec:  req.PingTimeoutSec,
+			SpeedTimeoutSec: req.SpeedTimeoutSec,
+			PingConcurrency: req.PingConcurrency,
+			SpeedConc:       req.SpeedConc,
+		}, s.bus.Log)
+	}()
+	return map[string]any{"ok": true, "running": true}, nil
+}
+
+func (s *Server) handleXrayCDNConfigsStatus(json.RawMessage) (any, error) {
+	s.cdnMu.Lock()
+	state := s.cdn
+	s.cdnMu.Unlock()
+	if state == nil {
+		return map[string]any{"phase": 0, "finished": false, "rows": []any{}}, nil
+	}
+	return state.Snapshot(), nil
+}
+
+func (s *Server) handleXrayCDNConfigsStop(json.RawMessage) (any, error) {
+	s.cdnMu.Lock()
+	cancel := s.cdnCancel
+	s.cdnMu.Unlock()
+	if cancel == nil {
+		return map[string]any{"running": false}, nil
+	}
+	cancel()
+	s.log("CDN configs scan: stop requested", "WARN")
+	return map[string]any{"stopping": true}, nil
+}
+
+func (s *Server) handleXrayCDNConfigsPause(json.RawMessage) (any, error) {
+	s.cdnMu.Lock()
+	state := s.cdn
+	s.cdnMu.Unlock()
+	if state == nil {
+		return map[string]any{"paused": false}, nil
+	}
+	state.Pause()
+	s.log("CDN configs scan: paused", "DIM")
+	return map[string]any{"paused": true}, nil
+}
+
+func (s *Server) handleXrayCDNConfigsResume(json.RawMessage) (any, error) {
+	s.cdnMu.Lock()
+	state := s.cdn
+	s.cdnMu.Unlock()
+	if state == nil {
+		return map[string]any{"paused": false}, nil
+	}
+	state.Resume()
+	s.log("CDN configs scan: resumed", "DIM")
+	return map[string]any{"paused": false}, nil
 }
 
 func (s *Server) handleXrayFind(json.RawMessage) (any, error) {
 	p := xray.FindXray()
 	return map[string]any{"found": p != "", "path": p}, nil
+}
+
+// siteScanState tracks an in-progress site scan for live progress polling.
+type siteScanState struct {
+	mu        sync.Mutex
+	total     int
+	done      int
+	rows      []sni.CFSiteResult
+	finished  bool
+	cancelled bool
+	reachable int
+	cf        int
+	started   time.Time
+}
+
+func (st *siteScanState) snapshot() map[string]any {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	rows := make([]sni.CFSiteResult, len(st.rows))
+	copy(rows, st.rows)
+	return map[string]any{
+		"total": st.total, "done": st.done, "rows": rows,
+		"finished": st.finished, "cancelled": st.cancelled,
+		"reachable": st.reachable, "cf": st.cf,
+		"elapsed_ms": time.Since(st.started).Milliseconds(),
+	}
+}
+
+// handleSitesScan starts an async scan: resolves each domain, measures TLS
+// reachability + latency, and flags Cloudflare membership. Progress is polled
+// via /api/sites/scan/status.
+func (s *Server) handleSitesScan(body json.RawMessage) (any, error) {
+	var req struct {
+		Domains string `json:"domains"`
+		Port    int    `json:"port"`
+		Timeout int    `json:"timeout"`
+	}
+	if err := json.Unmarshal(body, &req); err != nil {
+		return nil, err
+	}
+	domains := splitLines(req.Domains)
+	if len(domains) == 0 {
+		return nil, errors.New("paste at least one domain")
+	}
+	if len(domains) > 1000 {
+		domains = domains[:1000]
+	}
+	port := req.Port
+	if port == 0 {
+		port = 443
+	}
+	timeout := timeoutOf(req.Timeout, 6)
+
+	s.siteMu.Lock()
+	if s.siteCancel != nil {
+		s.siteCancel()
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	s.siteCancel = cancel
+	st := &siteScanState{total: len(domains), started: time.Now()}
+	s.site = st
+	s.siteMu.Unlock()
+
+	s.log("Site scan: "+strconv.Itoa(len(domains))+" domains (reachability + Cloudflare)", "ACCENT")
+	go func() {
+		sem := make(chan struct{}, 32)
+		var wg sync.WaitGroup
+		for _, d := range domains {
+			if ctx.Err() != nil {
+				break
+			}
+			wg.Add(1)
+			sem <- struct{}{}
+			go func(domain string) {
+				defer wg.Done()
+				defer func() { <-sem }()
+				r := sni.CheckCloudflareSite(domain, port, timeout)
+				st.mu.Lock()
+				st.rows = append(st.rows, r)
+				st.done++
+				if r.Reachable {
+					st.reachable++
+				}
+				if r.OnCloudflare {
+					st.cf++
+				}
+				st.mu.Unlock()
+			}(d)
+		}
+		wg.Wait()
+		st.mu.Lock()
+		st.finished = true
+		st.cancelled = ctx.Err() != nil
+		st.mu.Unlock()
+		s.log("Site scan done.", "OK")
+	}()
+	return map[string]any{"started": true, "total": len(domains)}, nil
+}
+
+func (s *Server) handleSitesScanStatus(json.RawMessage) (any, error) {
+	s.siteMu.Lock()
+	st := s.site
+	s.siteMu.Unlock()
+	if st == nil {
+		return map[string]any{"total": 0, "done": 0, "rows": []any{}, "finished": true}, nil
+	}
+	return st.snapshot(), nil
+}
+
+func (s *Server) handleSitesScanStop(json.RawMessage) (any, error) {
+	s.siteMu.Lock()
+	if s.siteCancel != nil {
+		s.siteCancel()
+	}
+	s.siteMu.Unlock()
+	return map[string]any{"ok": true}, nil
+}
+
+// Saved-SNI list persistence (the "Saved SNI list" card in SNI Tunnel).
+func (s *Server) handleSavedSNISave(body json.RawMessage) (any, error) {
+	if len(body) == 0 || !json.Valid(body) {
+		return nil, errors.New("invalid data")
+	}
+	if err := writeSideFile("v2rayez-saved-sni.json", body); err != nil {
+		return nil, err
+	}
+	return map[string]any{"ok": true}, nil
+}
+
+func (s *Server) handleSavedSNILoad(json.RawMessage) (any, error) {
+	data, err := readSideFile("v2rayez-saved-sni.json")
+	if err != nil || len(data) == 0 || !json.Valid(data) {
+		return map[string]any{"found": false, "data": []any{}}, nil
+	}
+	return map[string]any{"found": true, "data": json.RawMessage(data)}, nil
+}
+
+func (s *Server) handleXrayUpdateConfigs(body json.RawMessage) (any, error) {
+	var req struct {
+		Limit int `json:"limit"`
+	}
+	_ = json.Unmarshal(body, &req)
+	if req.Limit <= 0 {
+		req.Limit = 300
+	}
+	s.log("Fetching fresh configs…", "ACCENT")
+	cfgs, err := xray.FetchLatestConfigs(req.Limit, s.bus.Log)
+	if err != nil {
+		s.log("✗ "+err.Error(), "ERROR")
+		return nil, err
+	}
+	return map[string]any{"count": len(cfgs), "configs": cfgs}, nil
+}
+
+// handleQR renders the given text as a QR PNG (base64 data URI) for sharing.
+func (s *Server) handleQR(body json.RawMessage) (any, error) {
+	var req struct {
+		Text string `json:"text"`
+	}
+	if err := json.Unmarshal(body, &req); err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(req.Text) == "" {
+		return nil, errors.New("text required")
+	}
+	png, err := qrcode.Encode(req.Text, qrcode.Medium, 320)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]any{"png": "data:image/png;base64," + base64.StdEncoding.EncodeToString(png)}, nil
+}
+
+// ---- Edge Tunnel (Cloudflare Worker VLESS) --------------------------------
+
+func (s *Server) handleEdgeUUID(json.RawMessage) (any, error) {
+	return map[string]any{"uuid": edgetunnel.GenUUID()}, nil
+}
+
+func (s *Server) handleEdgeGenerate(body json.RawMessage) (any, error) {
+	var req struct {
+		UUID    string `json:"uuid"`
+		Host    string `json:"host"`
+		Address string `json:"address"`
+		Path    string `json:"path"`
+		Name    string `json:"name"`
+		Ports   []int  `json:"ports"`
+	}
+	if err := json.Unmarshal(body, &req); err != nil {
+		return nil, err
+	}
+	links, err := edgetunnel.Build(edgetunnel.Options{
+		UUID: req.UUID, Host: req.Host, Address: req.Address,
+		Path: req.Path, Name: req.Name, Ports: req.Ports,
+	})
+	if err != nil {
+		return nil, err
+	}
+	s.log("Edge Tunnel: generated "+strconv.Itoa(len(links))+" VLESS configs for "+req.Host, "OK")
+	return map[string]any{"configs": links, "count": len(links)}, nil
+}
+
+// handleSubscribe fetches any subscription URL and returns its share links.
+func (s *Server) handleSubscribe(body json.RawMessage) (any, error) {
+	var req struct {
+		URL   string `json:"url"`
+		Limit int    `json:"limit"`
+	}
+	if err := json.Unmarshal(body, &req); err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(req.URL) == "" {
+		return nil, errors.New("subscription URL required")
+	}
+	s.log("Fetching subscription "+req.URL+" …", "ACCENT")
+	links, err := xray.FetchSubscription(req.URL, req.Limit)
+	if err != nil {
+		s.log("✗ "+err.Error(), "ERROR")
+		return nil, err
+	}
+	s.log("Subscription: "+strconv.Itoa(len(links))+" configs", "OK")
+	return map[string]any{"configs": links, "count": len(links)}, nil
+}
+
+// ---- Config manager persistence (groups of saved configs) -----------------
+
+func (s *Server) handleConfigsStoreSave(body json.RawMessage) (any, error) {
+	if len(body) == 0 || !json.Valid(body) {
+		return nil, errors.New("invalid data")
+	}
+	if err := writeSideFile("v2rayez-configs.json", body); err != nil {
+		return nil, err
+	}
+	return map[string]any{"ok": true}, nil
+}
+
+func (s *Server) handleConfigsStoreLoad(json.RawMessage) (any, error) {
+	data, err := readSideFile("v2rayez-configs.json")
+	if err != nil || len(data) == 0 || !json.Valid(data) {
+		return map[string]any{"found": false, "data": map[string]any{}}, nil
+	}
+	return map[string]any{"found": true, "data": json.RawMessage(data)}, nil
 }
 
 func (s *Server) handleXrayDownload(body json.RawMessage) (any, error) {
@@ -523,6 +924,64 @@ func (s *Server) handleXrayStop(json.RawMessage) (any, error) {
 
 func (s *Server) handleXrayStatus(json.RawMessage) (any, error) {
 	return s.xrayRunner.Status(), nil
+}
+
+// ---- sing-box (TUN / system-wide) -----------------------------------------
+
+func (s *Server) handleSingboxFind(json.RawMessage) (any, error) {
+	p := singbox.Find()
+	return map[string]any{"found": p != "", "path": p}, nil
+}
+
+func (s *Server) handleSingboxDownload(body json.RawMessage) (any, error) {
+	var req struct {
+		Dir string `json:"dir"`
+	}
+	_ = json.Unmarshal(body, &req)
+	s.log("Downloading sing-box…", "ACCENT")
+	path, err := singbox.Download(strings.TrimSpace(req.Dir), s.bus.Log)
+	if err != nil {
+		s.log("✗ sing-box download failed: "+err.Error(), "ERROR")
+		return map[string]any{"ok": false, "error": err.Error()}, nil
+	}
+	return map[string]any{"ok": true, "path": path}, nil
+}
+
+func (s *Server) handleSingboxStart(body json.RawMessage) (any, error) {
+	var req struct {
+		URI       string `json:"uri"`
+		BinPath   string `json:"bin_path"`
+		TUN       bool   `json:"tun"`
+		SocksPort int    `json:"socks_port"`
+	}
+	if err := json.Unmarshal(body, &req); err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(req.URI) == "" {
+		return nil, errors.New("connect a config first (use a Connect button in the Library)")
+	}
+	if req.SocksPort == 0 {
+		req.SocksPort = 2080
+	}
+	if req.TUN {
+		s.log("Starting sing-box in TUN mode (needs admin/root)…", "ACCENT")
+	} else {
+		s.log("Starting sing-box (SOCKS)…", "ACCENT")
+	}
+	if err := s.singboxRunner.Start(req.BinPath, req.URI, req.TUN, req.SocksPort); err != nil {
+		s.log("✗ "+err.Error(), "ERROR")
+		return nil, err
+	}
+	return s.singboxRunner.Status(), nil
+}
+
+func (s *Server) handleSingboxStop(json.RawMessage) (any, error) {
+	s.singboxRunner.Stop()
+	return map[string]any{"running": false}, nil
+}
+
+func (s *Server) handleSingboxStatus(json.RawMessage) (any, error) {
+	return s.singboxRunner.Status(), nil
 }
 
 // ---- WinDivert ------------------------------------------------------------

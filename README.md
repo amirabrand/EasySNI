@@ -1,6 +1,6 @@
-<h1 align="center">EzSNI</h1>
+<h1 align="center">V2RayEz</h1>
 
-<p align="center"><i>by MacanDev</i></p>
+<p align="center"><i>by MacanDev · Telegram @EzAccess1</i></p>
 
 <p align="center">
   <b>An all-in-one, fully offline DPI-bypass &amp; SNI-spoofing toolkit — written in Go.</b><br>
@@ -49,9 +49,9 @@ A Go rewrite and major expansion of a Python SNI-spoofing / DPI-bypass tool, del
 
 | Area | What you get |
 |------|--------------|
-| **SNI Tunnel** | Triple-mode local TCP proxy — *transparent* (terminates TLS upstream with a spoofed SNI), *passthrough* (raw TCP for clients with their own TLS), or *CDN fronting* (front SNI + rewritten `Host` header). Accepts **multiple SNIs (one per line)**, rotated per connection. Inline relay test, port check, and LAN sharing. |
+| **SNI Tunnel** | Triple-mode local TCP proxy — *transparent* (terminates TLS upstream with a spoofed SNI), *passthrough* (raw TCP for clients with their own TLS), or *CDN fronting* (front SNI + rewritten `Host` header). Accepts **multiple SNIs (one per line)**, rotated per connection. Inline relay test, port check, LAN sharing, and **save/restore the full app config** across restarts. |
 | **DPI bypass** | SNI-aware ClientHello fragmentation, plus fake-ClientHello injection with `wrong_checksum` / `wrong_seq` desync and uTLS-style fingerprint presets. |
-| **SPlus Tunnel** | SOCKS5 over a SoroushPlus voice call's LiveKit data channel (port of [`theermia/SPlusTunnel`](https://github.com/theermia/SPlusTunnel)). Optional **username/password auth** for LAN-shared SOCKS. |
+| **SPlus Tunnel** | SOCKS5 over a SoroushPlus voice call's LiveKit data channel. Optional **username/password auth** for LAN-shared SOCKS. |
 | **Psiphon** | Embedded Psiphon device tunnel that dials out **through an upstream proxy this app exposes**, then offers local SOCKS5/HTTP for the whole device *(build with `-tags psiphon`)*. |
 | **Xray** | Test a `vless://`/`vmess://` link (direct or via the spoofed-SNI proxy), **mass-check many configs** by ping/relay delay, **run xray on the device** as a local SOCKS proxy, and **detect/download** the xray binary. |
 | **Scanners** | Single SNI check, relay timing, mass SNI scan (with a built-in captcha-domain list), a Cloudflare IP sweeper, and a **CDN-fronting edge tester** that ranks edge IPs by ping with one-click connect. |
@@ -156,7 +156,7 @@ So the flow is: device → Xray/Psiphon (real proxy protocol) → CDN edge (fron
 Set the xray path (or **Detect** / **Download** the binary), then:
 
 - **Single test** — paste a link and run a real HTTPS request. *Direct* connects straight to the config server; unchecking it routes through the local SNI proxy (start that proxy in PASSTHROUGH first). If the proxy isn't listening the test fails fast; if Xray errors, its log is surfaced (no bare "EOF").
-- **Mass URI check** — paste many configs (one per line) and rank them by ping (TCP connect) and relay delay (TLS) to each config's own server. No xray needed; **Use** sends a row to the runner.
+- **Mass URI check** — paste many configs (vless / vmess / trojan / shadowsocks, one per line). Each is run **through xray** to a test host you choose (e.g. `https://instagram.com`), measuring ping to the server and relay delay through the tunnel; ranked fastest first. Tick *through the SNI Tunnel* to route every test via your passthrough proxy, and **Connect** starts the chosen config on the device.
 - **Run xray on this device** — launch xray as a persistent local SOCKS5 your whole device can point at (bind `0.0.0.0` to share on the LAN).
 
 ### Psiphon device tunnel
@@ -218,7 +218,6 @@ go test ./... -race      # all of the above under the race detector
 ### Credits &amp; license
 
 Made by **MacanDev** — Telegram channel [@EzAccess1](https://t.me/EzAccess1).
-SPlus tunnel ported from [`theermia/SPlusTunnel`](https://github.com/theermia/SPlusTunnel).
 
 Provided as-is, for lawful network diagnostics and censorship circumvention. No warranty.
 
@@ -250,9 +249,9 @@ Provided as-is, for lawful network diagnostics and censorship circumvention. No 
 
 | بخش | چه چیزی به‌دست می‌آورید |
 |------|--------------------------|
-| **تونل SNI** | پروکسی محلی TCP سه‌حالته — *شفاف* (خاتمهٔ TLS با SNI جعلی)، *عبوری* (TCP خام برای کلاینت‌هایی که TLS خودشان را دارند) یا *CDN فرانتینگ* (SNI فرانت + بازنویسی هدر `Host`). از **چند SNI (هر خط یک مورد)** که به‌ازای هر اتصال چرخش می‌یابند پشتیبانی می‌کند. همراه با تست رله، بررسی پورت و اشتراک شبکه. |
+| **تونل SNI** | پروکسی محلی TCP سه‌حالته — *شفاف* (خاتمهٔ TLS با SNI جعلی)، *عبوری* (TCP خام برای کلاینت‌هایی که TLS خودشان را دارند) یا *CDN فرانتینگ* (SNI فرانت + بازنویسی هدر `Host`). از **چند SNI (هر خط یک مورد)** که به‌ازای هر اتصال چرخش می‌یابند پشتیبانی می‌کند. همراه با تست رله، بررسی پورت، اشتراک شبکه و **ذخیره/بازیابی کامل پیکربندی برنامه** بین اجراها. |
 | **عبور از DPI** | تکه‌تکه‌سازی ClientHello مبتنی بر SNI، به‌علاوهٔ تزریق ClientHello جعلی با حالت‌های `wrong_checksum` / `wrong_seq` و پریست‌های اثرانگشت به سبک uTLS. |
-| **تونل SPlus** | SOCKS5 روی کانال دادهٔ LiveKit یک تماس صوتی سروش‌پلاس (پورت‌شدهٔ [`theermia/SPlusTunnel`](https://github.com/theermia/SPlusTunnel)). همراه با **احراز هویت نام‌کاربری/رمز** اختیاری برای SOCKS اشتراکی در شبکه. |
+| **تونل SPlus** | SOCKS5 روی کانال دادهٔ LiveKit یک تماس صوتی سروش‌پلاس. همراه با **احراز هویت نام‌کاربری/رمز** اختیاری برای SOCKS اشتراکی در شبکه. |
 | **سایفون** | تونل دستگاه سایفونِ تعبیه‌شده که خروجش را **از طریق یک پروکسی بالادست که همین برنامه ارائه می‌دهد** برقرار می‌کند، سپس SOCKS5/HTTP محلی برای کل دستگاه فراهم می‌کند *(ساخت با `-tags psiphon`)*. |
 | **Xray** | تست لینک `vless://`/`vmess://` (مستقیم یا از طریق پروکسی جعل‌SNI)، **بررسی گروهی چندین کانفیگ** بر اساس پینگ/تأخیر رله، **اجرای xray روی دستگاه** به‌عنوان پروکسی SOCKS محلی، و **تشخیص/دانلود** فایل اجرایی xray. |
 | **اسکنرها** | بررسی تکی SNI، زمان‌سنجی رله، اسکن گروهی SNI (با لیست داخلی دامنه‌های کپچا)، جاروی IP کلودفلر و یک **تستر اِج CDN فرانتینگ** که IPهای اِج را بر اساس پینگ مرتب کرده و با یک کلیک متصل می‌شود. |
@@ -368,6 +367,5 @@ curl --socks5-hostname 127.0.0.1:1080 https://ifconfig.me
 ### اعتبار و مجوز
 
 ساخت: **MacanDev** — کانال تلگرام [@EzAccess1](https://t.me/EzAccess1).
-تونل SPlus پورت‌شده از [`theermia/SPlusTunnel`](https://github.com/theermia/SPlusTunnel).
 
 به‌همان‌صورت که هست، برای عیب‌یابی قانونی شبکه و عبور از فیلترینگ ارائه می‌شود. بدون هیچ ضمانتی.
