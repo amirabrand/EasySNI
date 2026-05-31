@@ -10,12 +10,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
 	"ezsni/internal/desync"
 	"ezsni/internal/gtunnel"
 	"ezsni/internal/logbus"
+	"ezsni/internal/mitmdf"
 	"ezsni/internal/proxy"
 	"ezsni/internal/psiphon"
 	"ezsni/internal/singbox"
@@ -23,7 +25,7 @@ import (
 	"ezsni/internal/xray"
 )
 
-//go:embed web/index.html
+//go:embed web/index.html web/favicon.ico web/favicon.png
 var webFS embed.FS
 
 // Server holds the shared application state.
@@ -38,6 +40,7 @@ type Server struct {
 	xrayRunner     *xray.Runner
 	singboxRunner  *singbox.Runner
 	gtun           *gtunnel.Runner
+	mitmdf         *mitmdf.Runner
 	psi            *psiphon.Controller
 	cdnMu          sync.Mutex
 	cdn            *xray.CDNScanState
@@ -54,6 +57,8 @@ func New() *Server {
 	s.singboxRunner = singbox.NewRunner(s.bus.Log)
 	s.gtun = gtunnel.NewRunner(s.bus.Log)
 	gtunnel.SetStore(readSideFile, writeSideFile)
+	s.mitmdf = mitmdf.NewRunner(s.bus.Log)
+	mitmdf.SetStore(readSideFile, writeSideFile)
 	s.psi = psiphon.New()
 	return s
 }
@@ -72,6 +77,8 @@ func (s *Server) log(msg, level string) { s.bus.Log(msg, level) }
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", s.handleIndex)
+	mux.HandleFunc("/favicon.ico", s.handleFavicon)
+	mux.HandleFunc("/favicon.png", s.handleFavicon)
 	mux.HandleFunc("/api/events", s.handleEvents)
 	mux.HandleFunc("/api/uri/parse", s.jsonPOST(s.handleParseURI))
 	mux.HandleFunc("/api/sni/scan", s.jsonPOST(s.handleSNIScan))
@@ -120,6 +127,11 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/gtun/stop", s.jsonPOST(s.handleGtunStop))
 	mux.HandleFunc("/api/gtun/status", s.jsonPOST(s.handleGtunStatus))
 	mux.HandleFunc("/api/gtun/ca", s.handleGtunCA)
+	mux.HandleFunc("/api/mitmdf/start", s.jsonPOST(s.handleMitmdfStart))
+	mux.HandleFunc("/api/mitmdf/stop", s.jsonPOST(s.handleMitmdfStop))
+	mux.HandleFunc("/api/mitmdf/status", s.jsonPOST(s.handleMitmdfStatus))
+	mux.HandleFunc("/api/mitmdf/defaults", s.jsonPOST(s.handleMitmdfDefaults))
+	mux.HandleFunc("/api/mitmdf/ca", s.handleMitmdfCA)
 	mux.HandleFunc("/api/windivert/status", s.jsonPOST(s.handleWinDivertStatus))
 	mux.HandleFunc("/api/windivert/install", s.jsonPOST(s.handleWinDivertInstall))
 	mux.HandleFunc("/api/windivert/uninstall", s.jsonPOST(s.handleWinDivertUninstall))
@@ -148,6 +160,24 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = w.Write(data)
+}
+
+// handleFavicon serves the app icon. Chrome's --app window uses the page
+// favicon for its window / taskbar icon, so a real .ico here replaces the
+// generic browser globe with the V2RayEz logo.
+func (s *Server) handleFavicon(w http.ResponseWriter, r *http.Request) {
+	name, ctype := "web/favicon.ico", "image/x-icon"
+	if strings.HasSuffix(r.URL.Path, ".png") {
+		name, ctype = "web/favicon.png", "image/png"
+	}
+	data, err := webFS.ReadFile(name)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", ctype)
+	w.Header().Set("Cache-Control", "public, max-age=86400")
 	_, _ = w.Write(data)
 }
 

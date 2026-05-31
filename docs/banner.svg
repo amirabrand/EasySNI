@@ -45,7 +45,7 @@
 
   <!-- version chip -->
   <rect x="1086" y="40" width="118" height="34" rx="17" fill="#2dd4bf" fill-opacity="0.1" stroke="#2dd4bf" stroke-opacity="0.5"/>
-  <text x="1145" y="62" font-size="15" font-weight="700" fill="#2dd4bf" text-anchor="middle" font-family="'JetBrains Mono',monospace">v4.4.5</text>
+  <text x="1145" y="62" font-size="15" font-weight="700" fill="#2dd4bf" text-anchor="middle" font-family="'JetBrains Mono',monospace">v4.5.1</text>
 
   <!-- feature pills -->
   <g font-size="14.5" font-weight="600" font-family="'JetBrains Mono','Segoe UI',monospace">

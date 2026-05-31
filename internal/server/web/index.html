@@ -2,6 +2,9 @@
 <html lang="en" dir="ltr">
 <head>
 <meta charset="utf-8">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="apple-touch-icon" href="/favicon.png">
 <script>try{document.documentElement.setAttribute("data-theme",localStorage.getItem("v2rayez-theme")||"dark");}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>V2RayEz — by MacanDev · @EzAccess1</title>
@@ -34,7 +37,7 @@
   }
   *{box-sizing:border-box}
   html,body{height:100%}
-  html{font-size:clamp(15px,0.35vw + 13.4px,17px)}
+  html{font-size:clamp(13px,0.28vw + 11.9px,14.5px)}
   body{
     margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);
     font-size:1rem;line-height:1.55;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
@@ -46,7 +49,7 @@
   .app{display:grid;grid-template-columns:clamp(212px,17vw,264px) 1fr;
     grid-template-rows:auto 1fr clamp(140px,22vh,230px);height:100vh;
     grid-template-areas:"head head" "rail main" "rail console";}
-  html[dir=rtl] .app{grid-template-areas:"head head" "main rail" "console rail";}
+  html[dir=rtl] .app{grid-template-columns:1fr clamp(212px,17vw,264px);grid-template-areas:"head head" "main rail" "console rail";}
 
   header{grid-area:head;display:flex;align-items:center;gap:16px;padding:0 clamp(14px,2vw,26px);height:58px;
     border-bottom:1px solid var(--border);background:var(--panel);position:sticky;top:0;z-index:60}
@@ -301,6 +304,10 @@
 
   /* ---------- console (kept dark in both themes) ---------- */
   .console{grid-area:console;border-top:1px solid var(--border);background:#0a0e14;display:flex;flex-direction:column}
+  /* collapsed log: console row shrinks to just its bar */
+  .app.logmin{grid-template-rows:auto 1fr auto}
+  .app.logmin .log{display:none}
+  .app.logmin .console{min-height:0}
   html[data-theme="light"] .console{--text:#e6eaf2;--dim:#9aa6ba;--border:#2a3040;--bright:#f4f7fb}
   .console .bar{display:flex;align-items:center;gap:12px;padding:8px 18px;border-bottom:1px solid var(--border)}
   .console .bar .t{font-family:var(--mono);font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
@@ -577,6 +584,77 @@
         </ol>
         <div class="row"><button class="act btn-alt" id="gt_ca" data-i18n="c_download_ca">Download CA (.pem)</button><button class="act btn-alt" id="gt_ca_crt" data-i18n="c_download_ca_crt">Download CA (.crt · Windows)</button><span class="scanmeta" id="gt_cameta"></span></div>
         <div class="warnbox" style="margin-top:12px" data-i18n="gt_warn">The CA lets the tunnel read your HTTPS requests on this device only, to relay them — it never leaves your machine. Streaming/WebSocket isn't supported by the relay. Deploy and use within Google's and Cloudflare's terms and your local laws.</div>
+      </div>
+    </section>
+
+    <!-- MITM DOMAIN FRONTING -->
+    <section class="panel" data-panel="mitmdf">
+      <h1><span data-i18n="mdf_h1">Domain Fronting</span> <span class="tag" style="font-size:10px;color:var(--accent2);border:1px solid rgba(90,169,255,.42);border-radius:5px;padding:2px 7px;vertical-align:middle;font-family:var(--mono);letter-spacing:.12em" data-i18n="badge_new">NEW</span></h1>
+      <p class="sub" data-i18n="mdf_sub">Fully client-side domain fronting — no server, no relay. A local proxy decrypts your own HTTPS using a CA you install once, reads the real Host, then reconnects to that site's CDN edge showing an allowed front domain (e.g. www.google.com) to the network while carrying the real Host inside. The censor only sees ordinary traffic to the front.</p>
+
+      <div class="card">
+        <h2 data-i18n="mdf_flow_t">How it works</h2>
+        <div class="gtflow">
+          <span class="gtnode" data-i18n="mdf_n_browser">Browser</span><span class="gtar">→</span>
+          <span class="gtnode cy" data-i18n="mdf_n_proxy">V2RayEz MITM</span><span class="gtar">→</span>
+          <span class="gtnode" id="mdf_n_front">TLS · www.google.com</span><span class="gtar">→</span>
+          <span class="gtnode" data-i18n="mdf_n_cdn">CDN edge (real Host inside)</span><span class="gtar">→</span>
+          <span class="gtnode" data-i18n="mdf_n_site">Real site</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 data-i18n="mdf_step1">① Front rules (host → front domain)</h2>
+        <p class="hint" data-i18n="mdf_rules_h">One rule per line: <code>host-suffix = front-SNI</code>, or <code>host-suffix = front-SNI = dial-host</code> to also redirect the TCP connection (needed for Fastly). With no dial-host, it connects to the real site's IP and only swaps the TLS SNI. Edit freely; leave it as-is for the built-in set.</p>
+        <textarea id="mdf_rules" style="min-height:150px;font-size:12px"></textarea>
+        <div class="grid g2" style="margin-top:12px">
+          <label><span class="lbl" data-i18n="f_mdf_default">Default front for unmatched hosts (blank = direct, no interception)</span><input id="mdf_default" placeholder="(blank)"></label>
+          <label><span class="lbl" data-i18n="f_mdf_port">Local proxy port</span><input id="mdf_port" value="8087"></label>
+        </div>
+        <p class="hint" style="margin-top:14px" data-i18n="mdf_doh_h">Real hosts are resolved over fronted DoH so the censor's poisoned DNS (e.g. a 10.10.34.x blackhole) is never used. Defaults front Cloudflare 1.1.1.1; change only if needed.</p>
+        <div class="grid g2" style="margin-top:8px">
+          <label><span class="lbl" data-i18n="f_doh_preset">DoH server</span>
+            <select id="mdf_doh_preset">
+              <option value="cf1">Cloudflare · 1.1.1.1</option>
+              <option value="cf2">Cloudflare · 1.0.0.1</option>
+              <option value="google1">Google · 8.8.8.8 (front www.google.com)</option>
+              <option value="google2">Google · 8.8.4.4 (front www.google.com)</option>
+              <option value="quad9">Quad9 · 9.9.9.9</option>
+              <option value="custom" data-i18n="opt_custom">Custom…</option>
+            </select>
+          </label>
+        </div>
+        <div class="grid g3" style="margin-top:8px">
+          <label><span class="lbl" data-i18n="f_doh_ip">DoH IP</span><input id="mdf_doh_ip" value="1.1.1.1"></label>
+          <label><span class="lbl" data-i18n="f_doh_sni">DoH front SNI</span><input id="mdf_doh_sni" value="www.microsoft.com"></label>
+          <label><span class="lbl" data-i18n="f_doh_host">DoH host</span><input id="mdf_doh_host" value="cloudflare-dns.com"></label>
+        </div>
+        <div class="row"><button class="act btn-ghost" id="mdf_reset" data-i18n="c_reset_rules">Reset to built-in rules</button></div>
+      </div>
+
+      <div class="card">
+        <h2 data-i18n="mdf_step2">② Start</h2>
+        <div class="row">
+          <button class="act btn-go" id="mdf_start" data-i18n="c_start">Start</button>
+          <button class="act btn-stop" id="mdf_stop" disabled data-i18n="c_stop">Stop</button>
+          <button class="act btn-alt" id="mdf_sysset" data-i18n="hdr_sysset">Set Proxy</button>
+          <button class="act btn-ghost" id="mdf_sysclear" data-i18n="hdr_sysclear">Clear Proxy</button>
+          <span class="pill off" id="mdf_pill"><span class="dot"></span><span data-i18n="c_stopped">stopped</span></span>
+          <span class="scanmeta" id="mdf_meta"></span>
+        </div>
+        <div id="mdf_out"></div>
+      </div>
+
+      <div class="card">
+        <h2 data-i18n="mdf_step3">③ Point your browser/system at it &amp; trust the CA</h2>
+        <ol class="steps">
+          <li><span data-i18n="mdf_u1">Set your browser or system HTTP/HTTPS proxy to</span> <b>127.0.0.1 : <span id="mdf_portlbl">8087</span></b></li>
+          <li data-i18n="mdf_u2">Install &amp; trust the CA below so the proxy can read your HTTPS locally (it never leaves your machine).</li>
+          <li data-i18n="mdf_u3">Browse normally — sites on the mapped CDNs go out fronted; everything else passes through.</li>
+        </ol>
+        <div class="row"><button class="act btn-alt" id="mdf_ca" data-i18n="c_download_ca">Download CA (.pem)</button><button class="act btn-alt" id="mdf_ca_crt" data-i18n="c_download_ca_crt">Download CA (.crt · Windows)</button><span class="scanmeta" id="mdf_cameta"></span></div>
+        <div class="warnbox" style="margin-top:12px" data-i18n="mdf_warn">The CA decrypts your HTTPS on this device only, to re-front it — the private key never leaves your machine. Fronting only helps for sites already on a supported CDN, and works against SNI-based blocking (not destination-IP sanctions). Use within each provider's terms and your local laws.</div>
+        <p class="hint" style="margin-top:14px;text-align:center;opacity:.85" data-i18n="mdf_thanks">Thanks to patterniha — this is V2RayEz's own implementation of the MITM domain-fronting technique.</p>
       </div>
     </section>
 
@@ -966,7 +1044,7 @@
     <section class="panel" data-panel="about">
       <h1 data-i18n="about_h1">About</h1>
       <div class="hero">
-        <span class="ver">V2RayEz · v4.4.5</span>
+        <span class="ver">V2RayEz · v4.5.1</span>
         <h1 data-i18n="about_app">V2RayEz — DPI Bypass &amp; CDN Toolkit</h1>
         <p data-i18n="about_tagline">An all-in-one panel for beating DPI: SNI tunnel, Cloudflare edge &amp; config scanners that build ranked working configs, an xray client you can run on-device, plus Psiphon and SPlus tunnels — one fast, offline Go app you can open from any device on your network.</p>
         <div class="credit">
@@ -998,6 +1076,7 @@
       <div class="card">
         <h2 data-i18n="about_updates_t">What's new</h2>
         <ul class="changelog">
+          <li><b>v4.5.1</b> <span data-i18n="about_u_451">— New Domain Fronting tab: fully client-side fronting with a curated host→front rule map, DoH resolution (so the censor's poisoned DNS is bypassed) with switchable presets (Cloudflare / Google / Quad9), Set/Clear system proxy, direct pass-through for unmatched hosts, and live request/error logging in the console; downloadable CA (.pem/.crt).</span></li>
           <li><b>v4.4.5</b> <span data-i18n="about_u_445">— Brand-new UI: cleaner fonts, a calmer flat design, and fully fluid layout that fits every monitor from phones to ultra-wide; light & dark themes; readable sans-serif labels and buttons; Google Tunnel (Fastly) with front presets and a .crt certificate for one-click Windows install; Set / Clear system proxy from the header.</span></li>
           <li><b>v4.1</b> <span data-i18n="about_u_41">— sing-box system-wide TUN mode; Start/Stop + TUN toggle in the header bar; Site Scanner rebuilt with live progress, cards and Connect/Save; Saved SNI list; every scanner now uses cards + progress bars; config-library right-click menu, shift-select and bulk relay/speed tests; Load SNI Configs; auto-save everything; mobile layout; Edge Tunnel removed.</span></li>
           <li><b>v4.0</b> <span data-i18n="about_u_40">— Renamed to V2RayEz; XRay Core tab; Config Library with groups, subscriptions, QR &amp; drag-drop; native app window; LAN access on 0.0.0.0:8765; Cloudflare Worker maker; CDN Configs builder; annotated config names.</span></li>
@@ -1029,6 +1108,7 @@
     <div class="bar">
       <span class="t" data-i18n="c_console">Console</span>
       <span class="conn" id="conn">&#9679; <span data-i18n="c_connecting">connecting...</span></span>
+      <button id="logToggle" title="Collapse / expand the log">▾</button>
       <button id="clearLog" data-i18n="c_clear">clear</button>
     </div>
     <div class="log" id="log"></div>
@@ -1044,7 +1124,17 @@ const I18N = {
   en:{
     hdr_edition:"By MacanDev · @EzAccess1", hdr_proxy:"SNI Tunnel", hdr_splus:"SPlus", hdr_xray:"xray", badge_new:"NEW",
     sec_tunnels:"Tunnels", sec_scanners:"Scanners", sec_tools:"Tools", sec_library:"Library",
-    nav_configs:"Configs", nav_edge:"Edge Tunnel", nav_sites:"Site Scanner", nav_cfworker:"CF Worker", nav_gtun:"Google Tunnel",
+    nav_configs:"Configs", nav_edge:"Edge Tunnel", nav_sites:"Site Scanner", nav_cfworker:"CF Worker", nav_gtun:"Google Tunnel", nav_mitmdf:"Domain Fronting",
+    mdf_h1:"Domain Fronting", mdf_sub:"Fully client-side domain fronting — no server, no relay. A local proxy decrypts your own HTTPS using a CA you install once, reads the real Host, then reconnects to that site's CDN edge showing an allowed front domain (e.g. www.google.com) to the network while carrying the real Host inside. The censor only sees ordinary traffic to the front.",
+    mdf_flow_t:"How it works", mdf_n_browser:"Browser", mdf_n_proxy:"V2RayEz MITM", mdf_n_cdn:"CDN edge (real Host inside)", mdf_n_site:"Real site",
+    mdf_step1:"① Front rules (host → front domain)", mdf_rules_h:"One rule per line: host-suffix = front-SNI, or host-suffix = front-SNI = dial-host to also redirect the TCP connection (needed for Fastly). With no dial-host it connects to the real site's IP and only swaps the TLS SNI. Edit freely; leave it as-is for the built-in set.",
+    f_mdf_default:"Default front for unmatched hosts (blank = direct, no interception)", f_mdf_port:"Local proxy port", c_reset_rules:"Reset to built-in rules",
+    f_doh_preset:"DoH server", opt_custom:"Custom…",
+    mdf_doh_h:"Real hosts are resolved over fronted DoH so the censor's poisoned DNS (e.g. a 10.10.34.x blackhole) is never used. Defaults front Cloudflare 1.1.1.1; change only if needed.", f_doh_ip:"DoH IP", f_doh_sni:"DoH front SNI", f_doh_host:"DoH host",
+    mdf_step2:"② Start", mdf_step3:"③ Point your browser/system at it & trust the CA",
+    mdf_u1:"Set your browser or system HTTP/HTTPS proxy to", mdf_u2:"Install & trust the CA below so the proxy can read your HTTPS locally (it never leaves your machine).", mdf_u3:"Browse normally — sites on the mapped CDNs go out fronted; everything else passes through.",
+    mdf_warn:"The CA decrypts your HTTPS on this device only, to re-front it — the private key never leaves your machine. Fronting only helps for sites already on a supported CDN, and works against SNI-based blocking (not destination-IP sanctions). Use within each provider's terms and your local laws.",
+    mdf_thanks:"Thanks to patterniha — this is V2RayEz's own implementation of the MITM domain-fronting technique.", c_starting:"starting…", c_reset:"Reset",
     gt_h1:"Google Tunnel (Fastly)", gt_sub:"A domain-fronting tunnel: your traffic leaves your machine looking like an ordinary TLS connection to www.google.com, rides through a Google Apps Script relay you deploy, then a Cloudflare Worker fetches the real site. The network only ever sees Google. Everything below is generated by V2RayEz — you never touch any external repo.",
     gt_flow_t:"How it works", gt_n_front:"TLS · www.google.com",
     f_gt_preset:"Front preset (the domain shown to DPI)", gt_preset_h:"The front must sit on the same CDN edge as your relay host for fronting to work. The Google presets all share Google's edge with Apps Script, so they work out of the box — pick any to vary what DPI sees. Fastly is experimental and only works if your relay is Fastly-hosted; otherwise keep a Google preset.",
@@ -1157,6 +1247,7 @@ const I18N = {
     about_f8_t:"Config Library", about_f8_d:"Groups, subscriptions, SNI/Spoof config lists, QR sharing, right-click menu, multi-select with bulk relay/speed tests — all auto-saved across restarts.",
     about_f9_t:"Google Tunnel (Fastly)", about_f9_d:"A domain-fronting relay through Google Apps Script + a Cloudflare Worker you deploy — scripts generated in-app, with a downloadable CA (.pem / .crt).",
     about_updates_t:"What's new",
+    about_u_451:"— New Domain Fronting tab: fully client-side fronting with a curated host→front rule map, DoH resolution (so the censor's poisoned DNS is bypassed) with switchable presets (Cloudflare / Google / Quad9), Set/Clear system proxy, direct pass-through for unmatched hosts, and live request/error logging in the console; downloadable CA (.pem/.crt).",
     about_u_445:"— Brand-new UI: cleaner fonts, a calmer flat design, and fully fluid layout that fits every monitor from phones to ultra-wide; light & dark themes; readable sans-serif labels and buttons; Google Tunnel (Fastly) with front presets and a .crt certificate for one-click Windows install; Set / Clear system proxy from the header.",
     about_u_41:"— sing-box system-wide TUN mode; Start/Stop + TUN toggle in the header bar; Site Scanner rebuilt with live progress, cards and Connect/Save; Saved SNI list; every scanner now uses cards + progress bars; config-library right-click menu, shift-select and bulk relay/speed tests; Load SNI Configs; auto-save everything; mobile layout; Edge Tunnel removed.",
     about_u_40:"— Renamed to V2RayEz; XRay Core tab; Config Library with groups, subscriptions, QR & drag-drop; native app window; LAN access on 0.0.0.0:8765; Cloudflare Worker maker; CDN Configs builder; annotated config names.",
@@ -1226,7 +1317,17 @@ const I18N = {
   fa:{
     hdr_edition:"ساختهٔ MacanDev · @EzAccess1", hdr_proxy:"تونل SNI", hdr_splus:"SPlus", hdr_xray:"xray", badge_new:"جدید",
     sec_tunnels:"تونل‌ها", sec_scanners:"اسکنرها", sec_tools:"ابزارها", sec_library:"کتابخانه",
-    nav_configs:"کانفیگ‌ها", nav_edge:"اِج تونل", nav_sites:"اسکنر سایت", nav_cfworker:"ورکر CF", nav_gtun:"تونل گوگل",
+    nav_configs:"کانفیگ‌ها", nav_edge:"اِج تونل", nav_sites:"اسکنر سایت", nav_cfworker:"ورکر CF", nav_gtun:"تونل گوگل", nav_mitmdf:"دامین‌فرانتینگ",
+    mdf_h1:"دامین‌فرانتینگ", mdf_sub:"دامین‌فرانتینگ کاملاً سمت کلاینت — بدون سرور و بدون رله. یک پروکسی محلی با گواهی‌ای که یک‌بار نصب می‌کنید HTTPS خودتان را باز می‌کند، Host واقعی را می‌خواند، سپس به اِج CDN همان سایت وصل می‌شود و یک دامنهٔ فرانت مجاز (مثل www.google.com) را به شبکه نشان می‌دهد در حالی که Host واقعی داخل آن است. سانسورچی فقط ترافیک عادی به فرانت را می‌بیند.",
+    mdf_flow_t:"چطور کار می‌کند", mdf_n_browser:"مرورگر", mdf_n_proxy:"MITM وی‌تو‌ری‌ایزی", mdf_n_cdn:"اِج CDN (Host واقعی داخل)", mdf_n_site:"سایت واقعی",
+    mdf_step1:"① قواعد فرانت (هاست → دامنهٔ فرانت)", mdf_rules_h:"هر قاعده در یک خط: پسوند-هاست = SNI-فرانت یا پسوند-هاست = SNI-فرانت = هاست-اتصال (برای ریدایرکت کردن اتصال TCP؛ برای Fastly لازم است). بدون هاست-اتصال، به IP واقعی سایت وصل می‌شود و فقط SNI را عوض می‌کند. آزادانه ویرایش کنید؛ برای مجموعهٔ پیش‌فرض دست نزنید.",
+    f_mdf_default:"فرانت پیش‌فرض برای هاست‌های بدون قاعده (خالی = مستقیم و بدون دخالت)", f_mdf_port:"پورت پروکسی محلی", c_reset_rules:"بازنشانی به قواعد پیش‌فرض",
+    f_doh_preset:"سرویس DoH", opt_custom:"سفارشی…",
+    mdf_doh_h:"هاست‌های واقعی از طریق DoH فرانت‌شده resolve می‌شوند تا DNS مسموم سانسورچی (مثل بلک‌هول 10.10.34.x) هرگز استفاده نشود. پیش‌فرض، Cloudflare 1.1.1.1 را فرانت می‌کند؛ فقط در صورت نیاز تغییر دهید.", f_doh_ip:"IP سرویس DoH", f_doh_sni:"SNI فرانت DoH", f_doh_host:"هاست DoH",
+    mdf_step2:"② شروع", mdf_step3:"③ مرورگر/سیستم را به آن وصل کنید و گواهی را اعتماد کنید",
+    mdf_u1:"پروکسی HTTP/HTTPS مرورگر یا سیستم را روی این بگذارید:", mdf_u2:"گواهی زیر را نصب و اعتماد کنید تا پروکسی بتواند HTTPS شما را محلی بخواند (هرگز از دستگاه خارج نمی‌شود).", mdf_u3:"عادی بگردید — سایت‌های روی CDNهای نگاشت‌شده فرانت می‌شوند؛ بقیه مستقیم عبور می‌کنند.",
+    mdf_warn:"گواهی فقط روی همین دستگاه HTTPS شما را باز می‌کند تا دوباره فرانت کند — کلید خصوصی هرگز از دستگاه خارج نمی‌شود. فرانتینگ فقط برای سایت‌هایی که از قبل روی یک CDN پشتیبانی‌شده هستند کمک می‌کند و در برابر مسدودسازی مبتنی بر SNI کار می‌کند (نه تحریم IP مقصد). در چارچوب قوانین و شرایط هر سرویس استفاده کنید.",
+    mdf_thanks:"با تشکر از patterniha — این پیاده‌سازی مستقل V2RayEz از تکنیک دامین‌فرانتینگ با MITM است.", c_starting:"در حال شروع…", c_reset:"بازنشانی",
     gt_h1:"تونل گوگل (Fastly)", gt_sub:"یک تونل دامین‌فرانتینگ: ترافیک شما مثل یک اتصال TLS معمولی به www.google.com دیده می‌شود، از یک رله Google Apps Script که خودتان دیپلوی می‌کنید عبور می‌کند، سپس یک Cloudflare Worker سایت واقعی را می‌گیرد. شبکه فقط گوگل را می‌بیند. همه‌چیز زیر را V2RayEz می‌سازد — به هیچ مخزن بیرونی دست نمی‌زنید.",
     gt_flow_t:"چطور کار می‌کند", gt_n_front:"TLS · www.google.com",
     f_gt_preset:"پیش‌تنظیم فرانت (دامنه‌ای که به DPI نشان داده می‌شود)", gt_preset_h:"برای کارکرد فرانتینگ، دامنهٔ فرانت باید روی همان اِج CDN رلهٔ شما باشد. پیش‌تنظیم‌های گوگل همگی اِج گوگل را با Apps Script به اشتراک می‌گذارند و بدون تنظیم کار می‌کنند — هرکدام را برای تغییر آنچه DPI می‌بیند انتخاب کنید. Fastly آزمایشی است و فقط وقتی کار می‌کند که رلهٔ شما روی Fastly باشد؛ در غیر این صورت یک پیش‌تنظیم گوگل را نگه دارید.",
@@ -1339,6 +1440,7 @@ const I18N = {
     about_f8_t:"کتابخانهٔ کانفیگ", about_f8_d:"گروه‌ها، اشتراک‌ها، لیست‌های کانفیگ SNI/اسپوف، اشتراک QR، منوی راست‌کلیک، انتخاب چندتایی با تست رله/سرعت دسته‌ای — همه به‌طور خودکار ذخیره می‌شوند.",
     about_f9_t:"تونل گوگل (Fastly)", about_f9_d:"یک رلهٔ دامین‌فرانتینگ از طریق Google Apps Script و یک Cloudflare Worker که خودتان دیپلوی می‌کنید — اسکریپت‌ها داخل برنامه ساخته می‌شوند، با گواهی قابل دانلود (.pem / .crt).",
     about_updates_t:"تازه‌ها",
+    about_u_451:"— تب جدید دامین‌فرانتینگ: فرانتینگ کاملاً سمت کلاینت با نگاشت قابل‌ویرایش هاست→فرانت، resolve از طریق DoH (تا DNS مسموم سانسورچی دور زده شود) با پیش‌تنظیم‌های قابل‌تعویض (کلودفلر / گوگل / Quad9)، تنظیم/پاک‌کردن پروکسی سیستم، عبور مستقیم برای هاست‌های بدون قاعده، و ثبت زندهٔ درخواست/خطا در کنسول؛ گواهی قابل دانلود (.pem/.crt).",
     about_u_445:"— رابط کاربری کاملاً نو: فونت‌های تمیزتر، طراحی تخت و آرام، و چیدمان کاملاً واکنش‌گرا برای هر نمایشگری از موبایل تا اولترا‌واید؛ تم روشن و تیره؛ برچسب‌ها و دکمه‌های خوانا؛ تونل گوگل (Fastly) با پیش‌تنظیم‌های فرانت و گواهی .crt برای نصب آسان در ویندوز؛ تنظیم/پاک‌کردن پروکسی سیستم از نوار بالا.",
     about_u_41:"— حالت TUN سراسری با sing-box؛ شروع/توقف و کلید TUN در نوار بالا؛ بازسازی اسکنر سایت با پیشرفت زنده، کارت‌ها و اتصال/ذخیره؛ لیست SNI ذخیره‌شده؛ همهٔ اسکنرها کارت + نوار پیشرفت؛ منوی راست‌کلیک کتابخانه، انتخاب با Shift و تست‌های دسته‌ای؛ بارگذاری کانفیگ SNI؛ ذخیرهٔ خودکار؛ چیدمان موبایل؛ حذف Edge Tunnel.",
     about_u_40:"— تغییر نام به V2RayEz؛ تب XRay Core؛ کتابخانهٔ کانفیگ با گروه‌ها، اشتراک‌ها، QR و کشیدن‌ورها؛ پنجرهٔ نیتیو؛ دسترسی شبکه روی 0.0.0.0:8765؛ سازندهٔ ورکر کلودفلر؛ سازندهٔ CDN Configs؛ نام‌گذاری کانفیگ‌ها.",
@@ -1430,6 +1532,7 @@ const NAV_SECTIONS = [
   {label:"sec_tunnels", items:[
     {id:"proxy",   ic:"\u224B"},
     {id:"gtun",    ic:"\u25C8", tag:"new"},
+    {id:"mitmdf",  ic:"\u25C9", tag:"new"},
     {id:"splus",   ic:"\u21C4", tag:"new"},
     {id:"psiphon", ic:"\u24C5", tag:"new"},
   ]},
@@ -1481,6 +1584,7 @@ function selectTab(id){
   if(id==="configs"){ cfgmRender(); }
   if(id==="proxy"){ savedSNIRender(); }
   if(id==="gtun"){ api("/api/gtun/status",{}).then(s=>gtUI(!!(s&&s.running),s)); }
+  if(id==="mitmdf"){ mdfLoadDefaults(false); api("/api/mitmdf/status",{}).then(s=>mdfUI(!!(s&&s.running),s)); }
   // On mobile, collapse the nav dropdown after a tab is chosen.
   const rail=$("rail"); if(rail) rail.classList.remove("navopen");
 }
@@ -2598,6 +2702,72 @@ $("gt_ca_crt").onclick=()=>{ window.open("/api/gtun/ca?fmt=crt","_blank"); $("gt
 let gtPoll=null;
 function gtStartPoll(){ if(gtPoll) return; gtPoll=setInterval(async()=>{ const s=await api("/api/gtun/status",{}); if(s){ if(!s.running){ clearInterval(gtPoll); gtPoll=null; gtUI(false); } else gtUI(true,s); } },2500); }
 
+/* ===================== MITM domain fronting ===================== */
+function mdfRulesText(rules){ return (rules||[]).map(r=> r.dial ? (r.match+" = "+r.front+" = "+r.dial) : (r.match+" = "+r.front)).join("\n"); }
+function mdfParseRules(){
+  const out=[];
+  ($("mdf_rules").value||"").split("\n").forEach(line=>{
+    line=line.trim(); if(!line||line.startsWith("#")) return;
+    const parts=line.split("=").map(s=>s.trim());
+    if(parts.length<2) return;
+    const m=parts[0], f=parts[1], d=parts[2]||"";
+    if(m&&f){ const r={match:m,front:f}; if(d) r.dial=d; out.push(r); }
+  });
+  return out;
+}
+async function mdfLoadDefaults(force){
+  if(!force && $("mdf_rules").value.trim()) return;
+  const r=await api("/api/mitmdf/defaults",{});
+  if(r&&r.rules) $("mdf_rules").value=mdfRulesText(r.rules);
+}
+function mdfUI(running,st){
+  st=st||{};
+  $("mdf_start").disabled=running; $("mdf_stop").disabled=!running;
+  const pill=$("mdf_pill"); pill.className="pill "+(running?"run":"off");
+  pill.innerHTML='<span class="dot '+(running?"on":"")+'"></span>'+esc(running?t("c_running"):t("c_stopped"));
+  if(running){
+    $("mdf_meta").innerHTML='<span class="ok">'+esc(st.addr||("127.0.0.1:"+($("mdf_port").value)))+' · '+(st.rules||0)+' rules · '+(st.requests||0)+' req'+(st.errors?(' · '+st.errors+' err'):'')+'</span>';
+    mdfStartPoll();
+  } else { $("mdf_meta").textContent=""; }
+  const pl=$("mdf_portlbl"); if(pl) pl.textContent=$("mdf_port").value;
+}
+$("mdf_reset").onclick=()=>mdfLoadDefaults(true);
+const MDF_DOH={
+  cf1:{ip:"1.1.1.1",sni:"www.microsoft.com",host:"cloudflare-dns.com"},
+  cf2:{ip:"1.0.0.1",sni:"www.microsoft.com",host:"cloudflare-dns.com"},
+  google1:{ip:"8.8.8.8",sni:"www.google.com",host:"dns.google"},
+  google2:{ip:"8.8.4.4",sni:"www.google.com",host:"dns.google"},
+  quad9:{ip:"9.9.9.9",sni:"dns.quad9.net",host:"dns.quad9.net"}
+};
+$("mdf_doh_preset").onchange=()=>{
+  const p=MDF_DOH[$("mdf_doh_preset").value]; if(!p) return;
+  $("mdf_doh_ip").value=p.ip; $("mdf_doh_sni").value=p.sni; $("mdf_doh_host").value=p.host;
+};
+$("mdf_sysset").onclick=async()=>{
+  const port=num($("mdf_port").value)||8087;
+  const r=await api("/api/sysproxy/set",{mode:"http",host:"127.0.0.1",port});
+  $("mdf_cameta").innerHTML = (r&&r.ok) ? '<span class="ok">'+esc(t("hdr_sysset"))+' ✓ 127.0.0.1:'+port+'</span>' : '<span class="bad">'+esc((r&&r.error)||"failed")+'</span>';
+};
+$("mdf_sysclear").onclick=async()=>{
+  const r=await api("/api/sysproxy/clear",{});
+  $("mdf_cameta").innerHTML = (r&&r.ok) ? '<span class="ok">'+esc(t("hdr_sysclear"))+' ✓</span>' : '<span class="bad">'+esc((r&&r.error)||"failed")+'</span>';
+};
+$("mdf_start").onclick=async()=>{
+  const cfg={listen_host:"127.0.0.1",listen_port:num($("mdf_port").value)||8087,
+    rules:mdfParseRules(),default:$("mdf_default").value.trim(),
+    doh_ip:$("mdf_doh_ip").value.trim(),doh_sni:$("mdf_doh_sni").value.trim(),doh_host:$("mdf_doh_host").value.trim()};
+  $("mdf_out").innerHTML='<div class="result cy">'+esc(t("c_starting"))+'</div>';
+  const r=await api("/api/mitmdf/start",cfg);
+  if(r&&r.error){ $("mdf_out").innerHTML='<div class="result bad">'+esc(r.error)+'</div>'; mdfUI(false); return; }
+  $("mdf_out").innerHTML=""; mdfUI(true,r);
+};
+$("mdf_stop").onclick=async()=>{ await api("/api/mitmdf/stop",{}); mdfUI(false); };
+$("mdf_ca").onclick=()=>{ window.open("/api/mitmdf/ca","_blank"); $("mdf_cameta").innerHTML='<span class="ok">'+esc(t("gt_ca_hint"))+'</span>'; };
+$("mdf_ca_crt").onclick=()=>{ window.open("/api/mitmdf/ca?fmt=crt","_blank"); $("mdf_cameta").innerHTML='<span class="ok">'+esc(t("gt_ca_hint"))+'</span>'; };
+$("mdf_port").addEventListener("input",()=>{ const pl=$("mdf_portlbl"); if(pl) pl.textContent=$("mdf_port").value; });
+let mdfPoll=null;
+function mdfStartPoll(){ if(mdfPoll) return; mdfPoll=setInterval(async()=>{ const s=await api("/api/mitmdf/status",{}); if(s){ if(!s.running){ clearInterval(mdfPoll); mdfPoll=null; mdfUI(false); } else mdfUI(true,s); } },2500); }
+
 /* ===================== windivert ===================== */
 async function wdRefresh(){
   $("wd_status").innerHTML='<span class="cy">'+esc(t("wd_checking"))+'</span>';
@@ -2672,6 +2842,14 @@ $("themeBtn").onclick=()=>{
   applyTheme(cur==="light"?"dark":"light");
 };
 applyTheme((function(){ try{ return localStorage.getItem("v2rayez-theme")||"dark"; }catch(e){ return "dark"; } })());
+// Collapse / expand the in-app activity log (remembers the choice).
+function applyLogMin(on){
+  document.querySelector(".app").classList.toggle("logmin", on);
+  const b=$("logToggle"); if(b){ b.textContent = on ? "▴" : "▾"; b.title = on ? "Expand the log" : "Collapse the log"; }
+  try{ localStorage.setItem("v2rayez-logmin", on?"1":"0"); }catch(e){}
+}
+$("logToggle").onclick=()=>{ applyLogMin(!document.querySelector(".app").classList.contains("logmin")); };
+applyLogMin((function(){ try{ return localStorage.getItem("v2rayez-logmin")==="1"; }catch(e){ return false; } })());
 // Per-scanner progress bars: wrap each synchronous scan button so its bar shows
 // while the request is in flight.
 [["ms_go","ms_prog"],["cf_go","cf_prog"],["ce_go","ce_prog"],["x_massgo","x_mass_prog"]].forEach(([btn,bar])=>{

@@ -20,6 +20,7 @@ import (
 
 	"ezsni/internal/desync"
 	"ezsni/internal/server"
+	"ezsni/internal/winctl"
 )
 
 func main() {
@@ -101,7 +102,7 @@ func main() {
 			go openBrowser(openURL)
 		}
 		if *minimize {
-			go func() { time.Sleep(1200 * time.Millisecond); minimizeConsole() }()
+			go func() { time.Sleep(1200 * time.Millisecond); winctl.MinimizeConsole() }()
 		}
 	}
 

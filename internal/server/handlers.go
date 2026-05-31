@@ -20,6 +20,7 @@ import (
 
 	"ezsni/internal/edgetunnel"
 	"ezsni/internal/gtunnel"
+	"ezsni/internal/mitmdf"
 	"ezsni/internal/netutil"
 	"ezsni/internal/proxy"
 	"ezsni/internal/psiphon"
@@ -836,6 +837,51 @@ func (s *Server) handleGtunCA(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/x-pem-file")
 	w.Header().Set("Content-Disposition", "attachment; filename=v2rayez-google-tunnel-ca.pem")
+	_, _ = w.Write(pemBytes)
+}
+
+// ---- MITM domain-fronting (client-side) -----------------------------------
+
+func (s *Server) handleMitmdfDefaults(json.RawMessage) (any, error) {
+	return map[string]any{"rules": mitmdf.DefaultRules()}, nil
+}
+
+func (s *Server) handleMitmdfStart(body json.RawMessage) (any, error) {
+	var cfg mitmdf.Config
+	if err := json.Unmarshal(body, &cfg); err != nil {
+		return nil, err
+	}
+	s.log("Starting MITM domain-fronting proxy…", "ACCENT")
+	if err := s.mitmdf.Start(cfg); err != nil {
+		s.log("✗ MITM domain-fronting: "+err.Error(), "ERROR")
+		return nil, err
+	}
+	return s.mitmdf.Status(), nil
+}
+
+func (s *Server) handleMitmdfStop(json.RawMessage) (any, error) {
+	s.mitmdf.Stop()
+	return s.mitmdf.Status(), nil
+}
+
+func (s *Server) handleMitmdfStatus(json.RawMessage) (any, error) {
+	return s.mitmdf.Status(), nil
+}
+
+func (s *Server) handleMitmdfCA(w http.ResponseWriter, r *http.Request) {
+	pemBytes := s.mitmdf.CAPEM()
+	if len(pemBytes) == 0 {
+		http.Error(w, "CA not generated yet — start the proxy once", http.StatusNotFound)
+		return
+	}
+	if r.URL.Query().Get("fmt") == "crt" {
+		w.Header().Set("Content-Type", "application/x-x509-ca-cert")
+		w.Header().Set("Content-Disposition", "attachment; filename=v2rayez-domainfronting-ca.crt")
+		_, _ = w.Write(pemBytes)
+		return
+	}
+	w.Header().Set("Content-Type", "application/x-pem-file")
+	w.Header().Set("Content-Disposition", "attachment; filename=v2rayez-domainfronting-ca.pem")
 	_, _ = w.Write(pemBytes)
 }
 
