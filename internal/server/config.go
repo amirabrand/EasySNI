@@ -3,21 +3,28 @@ package server
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
-// defaultConfigPath returns the default path for saved config: next to the
-// executable (the "running folder"). Falls back to CWD then "ezsni-config.json".
-func defaultConfigPath() string {
+// appBaseDir is the app's running folder (next to the executable, else CWD).
+func appBaseDir() string {
 	if exe, err := os.Executable(); err == nil && exe != "" {
-		return filepath.Join(filepath.Dir(exe), "ezsni-config.json")
+		return filepath.Dir(exe)
 	}
 	if wd, err := os.Getwd(); err == nil {
-		return filepath.Join(wd, "ezsni-config.json")
+		return wd
 	}
-	return "ezsni-config.json"
+	return "."
+}
+
+// defaultConfigPath returns the default path for the saved config. It now lives
+// inside the configs/ folder alongside the rest of the app's saved data.
+func defaultConfigPath() string {
+	return filepath.Join(configsDir(), "ezsni-config.json")
 }
 
 // resolveConfigPath uses the caller-supplied path if non-empty (expanding ~/),
@@ -38,18 +45,128 @@ func resolveConfigPath(p string) string {
 	return p
 }
 
-// writeSideFile writes data to a file beside the app config (running folder).
+// writeSideFile writes data to a file inside the configs/ folder so all of the
+// app's saved data (configs, saved SNIs, stores, CA) lives in one folder.
 func writeSideFile(name string, data []byte) error {
-	path := resolveConfigPath("")
-	dir := filepath.Dir(path)
+	dir := configsDir()
 	_ = os.MkdirAll(dir, 0o755)
 	return os.WriteFile(filepath.Join(dir, name), data, 0o600)
 }
 
-// readSideFile reads a file beside the app config.
+// readSideFile reads a file from the configs/ folder, falling back to the old
+// beside-the-exe location (migration from earlier versions).
 func readSideFile(name string) ([]byte, error) {
-	path := resolveConfigPath("")
-	return os.ReadFile(filepath.Join(filepath.Dir(path), name))
+	if data, err := os.ReadFile(filepath.Join(configsDir(), name)); err == nil {
+		return data, nil
+	}
+	legacy := filepath.Join(appBaseDir(), name)
+	return os.ReadFile(legacy)
+}
+
+// isGroupFile reports whether a configs/ filename is a generated per-group file
+// (e.g. "01-Main.json"), as opposed to a store/saved file we must not delete.
+func isGroupFile(name string) bool {
+	if !strings.HasSuffix(name, ".json") || len(name) < 4 {
+		return false
+	}
+	return name[0] >= '0' && name[0] <= '9' && name[1] >= '0' && name[1] <= '9' && name[2] == '-'
+}
+
+// configsDir is the folder where the app config and each config group live.
+func configsDir() string {
+	return filepath.Join(appBaseDir(), "configs")
+}
+
+func sanitizeName(s string) string {
+	s = strings.TrimSpace(s)
+	repl := func(r rune) rune {
+		switch r {
+		case '/', '\\', ':', '*', '?', '"', '<', '>', '|', '\n', '\t':
+			return '_'
+		}
+		return r
+	}
+	s = strings.Map(repl, s)
+	if s == "" {
+		s = "group"
+	}
+	if len(s) > 60 {
+		s = s[:60]
+	}
+	return s
+}
+
+type cfgGroup struct {
+	ID      string            `json:"id"`
+	Name    string            `json:"name"`
+	Configs []json.RawMessage `json:"configs"`
+}
+type cfgStore struct {
+	Groups []cfgGroup      `json:"groups"`
+	Cur    string          `json:"cur"`
+	Active string          `json:"active"`
+	Extra  json.RawMessage `json:"-"`
+}
+
+// syncConfigsFolder writes one file per group into configs/, replacing the
+// folder contents so deleted groups don't linger.
+func syncConfigsFolder(raw []byte) (int, error) {
+	var st cfgStore
+	if err := json.Unmarshal(raw, &st); err != nil {
+		return 0, err
+	}
+	dir := configsDir()
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return 0, err
+	}
+	// remove old generated per-group files only (keep stores/saved files)
+	if entries, err := os.ReadDir(dir); err == nil {
+		for _, e := range entries {
+			if !e.IsDir() && isGroupFile(e.Name()) {
+				_ = os.Remove(filepath.Join(dir, e.Name()))
+			}
+		}
+	}
+	n := 0
+	for i, g := range st.Groups {
+		fname := fmt.Sprintf("%02d-%s.json", i+1, sanitizeName(g.Name))
+		out, _ := json.MarshalIndent(g, "", "  ")
+		if err := os.WriteFile(filepath.Join(dir, fname), out, 0o600); err == nil {
+			n++
+		}
+	}
+	return n, nil
+}
+
+// loadConfigsFolder rebuilds the store object from the per-group files.
+func loadConfigsFolder() ([]byte, error) {
+	dir := configsDir()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	var names []string
+	for _, e := range entries {
+		if !e.IsDir() && isGroupFile(e.Name()) {
+			names = append(names, e.Name())
+		}
+	}
+	sort.Strings(names)
+	st := cfgStore{Groups: []cfgGroup{}}
+	for _, name := range names {
+		data, err := os.ReadFile(filepath.Join(dir, name))
+		if err != nil {
+			continue
+		}
+		var g cfgGroup
+		if json.Unmarshal(data, &g) == nil && (g.ID != "" || g.Name != "") {
+			st.Groups = append(st.Groups, g)
+		}
+	}
+	if len(st.Groups) > 0 {
+		st.Cur = st.Groups[0].ID
+	}
+	return json.Marshal(st)
 }
 func (s *Server) handleConfigSave(body json.RawMessage) (any, error) {
 	var env struct {
@@ -87,6 +204,15 @@ func (s *Server) handleConfigLoad(body json.RawMessage) (any, error) {
 	_ = json.Unmarshal(body, &req)
 	path := resolveConfigPath(req.Path)
 	data, err := os.ReadFile(path)
+	if (err != nil || len(data) == 0 || !json.Valid(data)) && req.Path == "" {
+		// migration: read the old beside-the-exe ezsni-config.json if present
+		legacy := filepath.Join(appBaseDir(), "ezsni-config.json")
+		if legacy != path {
+			if ld, lerr := os.ReadFile(legacy); lerr == nil && len(ld) > 0 && json.Valid(ld) {
+				data, err = ld, nil
+			}
+		}
+	}
 	if err != nil || len(data) == 0 || !json.Valid(data) {
 		return map[string]any{"found": false, "path": path, "config": map[string]any{}}, nil
 	}

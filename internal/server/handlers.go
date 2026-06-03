@@ -1,11 +1,23 @@
 package server
 
 import (
+	"archive/tar"
+	"archive/zip"
+	"bytes"
+	"compress/gzip"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
+	"ezsni/internal/ghdl"
 	"fmt"
+	"io"
 	"net/http"
+	neturl "net/url"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -28,6 +40,8 @@ import (
 	"ezsni/internal/sni"
 	"ezsni/internal/splus"
 	"ezsni/internal/sysproxy"
+	"ezsni/internal/tor"
+	"ezsni/internal/tun2socks"
 	"ezsni/internal/windivert"
 	"ezsni/internal/xray"
 )
@@ -977,26 +991,60 @@ func (s *Server) handleConfigsStoreSave(body json.RawMessage) (any, error) {
 	if len(body) == 0 || !json.Valid(body) {
 		return nil, errors.New("invalid data")
 	}
-	if err := writeSideFile("v2rayez-configs.json", body); err != nil {
+	dir := configsDir()
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, err
 	}
-	return map[string]any{"ok": true}, nil
+	// Combined store now lives inside the configs/ folder, alongside the
+	// per-group files.
+	if err := os.WriteFile(filepath.Join(dir, "v2rayez-configs.json"), body, 0o600); err != nil {
+		return nil, err
+	}
+	n, ferr := syncConfigsFolder(body)
+	out := map[string]any{"ok": true, "folder": dir, "files": n}
+	if ferr != nil {
+		out["folder_error"] = ferr.Error()
+	}
+	return out, nil
 }
 
 func (s *Server) handleConfigsStoreLoad(json.RawMessage) (any, error) {
-	data, err := readSideFile("v2rayez-configs.json")
-	if err != nil || len(data) == 0 || !json.Valid(data) {
-		return map[string]any{"found": false, "data": map[string]any{}}, nil
+	// Prefer the combined store inside configs/, then the legacy beside-exe
+	// location (migration), then rebuild from the per-group files.
+	if data, err := os.ReadFile(filepath.Join(configsDir(), "v2rayez-configs.json")); err == nil && len(data) > 0 && json.Valid(data) {
+		return map[string]any{"found": true, "data": json.RawMessage(data)}, nil
 	}
-	return map[string]any{"found": true, "data": json.RawMessage(data)}, nil
+	if data, err := readSideFile("v2rayez-configs.json"); err == nil && len(data) > 0 && json.Valid(data) {
+		return map[string]any{"found": true, "data": json.RawMessage(data), "source": "legacy"}, nil
+	}
+	if fd, ferr := loadConfigsFolder(); ferr == nil && len(fd) > 0 {
+		return map[string]any{"found": true, "data": json.RawMessage(fd), "source": "folder"}, nil
+	}
+	return map[string]any{"found": false, "data": map[string]any{}}, nil
+}
+
+// handleConfigsFolderLoad explicitly rebuilds the config groups from the files
+// in the configs/ folder (so a user can drop .json group files in and import).
+func (s *Server) handleConfigsFolderLoad(json.RawMessage) (any, error) {
+	fd, err := loadConfigsFolder()
+	if err != nil || len(fd) == 0 {
+		return map[string]any{"found": false, "data": map[string]any{}, "folder": configsDir()}, nil
+	}
+	return map[string]any{"found": true, "data": json.RawMessage(fd), "folder": configsDir()}, nil
 }
 
 func (s *Server) handleXrayDownload(body json.RawMessage) (any, error) {
 	var req struct {
-		Dir string `json:"dir"`
+		Dir    string `json:"dir"`
+		Mirror string `json:"mirror"`
 	}
 	_ = json.Unmarshal(body, &req)
-	path, err := xray.Download(strings.TrimSpace(req.Dir), s.bus.Log)
+	ghdl.SetMirror(req.Mirror)
+	dir := strings.TrimSpace(req.Dir)
+	if dir == "" {
+		dir = appDir() // xray.Download extracts into <dir>/xray-core/
+	}
+	path, err := xray.Download(dir, s.bus.Log)
 	if err != nil {
 		s.log("✗ Xray download failed: "+err.Error(), "ERROR")
 		return map[string]any{"ok": false, "error": err.Error()}, nil
@@ -1044,6 +1092,452 @@ func (s *Server) handleXrayStop(json.RawMessage) (any, error) {
 
 func (s *Server) handleXrayStatus(json.RawMessage) (any, error) {
 	return s.xrayRunner.Status(), nil
+}
+
+// ---- Tor (pluggable transports + optional TUN) ----------------------------
+
+func (s *Server) handleTorStart(body json.RawMessage) (any, error) {
+	var req struct {
+		tor.Options
+		Tun bool `json:"tun"`
+	}
+	if err := json.Unmarshal(body, &req); err != nil {
+		return nil, err
+	}
+	if err := s.torr.Start(req.Options); err != nil {
+		s.log("✗ Tor: "+err.Error(), "ERROR")
+		return map[string]any{"ok": false, "error": err.Error()}, nil
+	}
+	out := s.torr.Status()
+	if req.Tun {
+		port := req.SocksPort
+		if port == 0 {
+			port = 9050
+		}
+		if err := s.t2s.Start("", "127.0.0.1", port, bridgeExcludeIPs(req.Bridges)); err != nil {
+			s.log("✗ tun2socks: "+err.Error(), "ERROR")
+			out["tun_error"] = err.Error()
+		} else {
+			out["tun"] = true
+		}
+	}
+	out["ok"] = true
+	return out, nil
+}
+
+func (s *Server) handleTorStop(json.RawMessage) (any, error) {
+	s.t2s.Stop()
+	s.torr.Stop()
+	return s.torr.Status(), nil
+}
+
+func (s *Server) handleTorStatus(json.RawMessage) (any, error) {
+	st := s.torr.Status()
+	st["tun_running"] = s.t2s.Running()
+	return st, nil
+}
+
+// builtinBridges returns bridge lines per transport. For obfs4 a different
+// random bridge is returned on each call so repeated "auto-get" presses rotate.
+// bridgeExcludeIPs extracts the host IPs from bridge lines so the TUN router
+// can keep those connections on the physical link (avoid routing Tor's own
+// bridge traffic back into the tunnel).
+func bridgeExcludeIPs(bridges string) []string {
+	var ips []string
+	for _, line := range strings.Split(bridges, "\n") {
+		f := strings.Fields(strings.TrimSpace(line))
+		// transport host:port fingerprint ...  → host:port is field[1]
+		var hp string
+		if len(f) >= 2 && (f[0] == "obfs4" || f[0] == "webtunnel" || f[0] == "meek_lite" || f[0] == "snowflake" || f[0] == "conjure") {
+			hp = f[1]
+		} else if len(f) >= 1 && strings.Contains(f[0], ":") {
+			hp = f[0]
+		}
+		if hp == "" {
+			continue
+		}
+		if strings.HasPrefix(hp, "[") { // [IPv6]:port
+			if i := strings.Index(hp, "]"); i > 0 {
+				ips = append(ips, hp[1:i])
+				continue
+			}
+		}
+		if i := strings.LastIndex(hp, ":"); i > 0 {
+			ips = append(ips, hp[:i])
+		}
+	}
+	return ips
+}
+
+var bridgeRotMu sync.Mutex
+var bridgeRotIdx = map[string]int{}
+
+// rotateBridges returns up to n bridges from pool, advancing a per-key cursor so
+// successive "Auto-get" presses hand out different bridges (≥2 helps conflux).
+func rotateBridges(key string, pool []string, n int) []string {
+	bridgeRotMu.Lock()
+	defer bridgeRotMu.Unlock()
+	if len(pool) == 0 {
+		return nil
+	}
+	if n > len(pool) {
+		n = len(pool)
+	}
+	start := bridgeRotIdx[key] % len(pool)
+	out := make([]string, 0, n)
+	for i := 0; i < n; i++ {
+		out = append(out, pool[(start+i)%len(pool)])
+	}
+	bridgeRotIdx[key] = (start + n) % len(pool)
+	return out
+}
+
+var obfs4Pool = []string{
+	"obfs4 89.10.81.64:7624 7468882481663A1AAE6067D5C6FC3A8CFAC82129 cert=Bsfe/59QH2vNZtj1MXurtPbPGENyL0i6bzfi9mXqceTJKF9wzf5K9x7xx2SdH70R0sd5Mg iat-mode=2",
+	"obfs4 108.50.202.242:46037 C26661629B7B8E05CB11D109360D02447EB9B5B5 cert=+A3dhOmzBR23iD4LoSgTO3fzTPsov91wbeA2c2D2FcQSlEV4H6ruI6ksxxsejqFsRbyDeQ iat-mode=0",
+	"obfs4 167.235.78.36:40678 C8C01639C3333ED20799C69B149641A6568044BC cert=PWxWCoFmK8B+x8WYbgWmTjfXsmRFjL3P5ptPdvzqks7nzMLroLlXc+wG49hpBlF3UG20bA iat-mode=0",
+	"obfs4 159.69.155.42:64255 99435AEB7614FCB425EF565856229E2E27A175F3 cert=Js2tgdMZvXSk2ogkWi+Mdtvi3LMX/6jv5MMqT7UVOdVklVfeGx7NXXwDeheFu1H5ORN6Zw iat-mode=0",
+	"obfs4 51.38.220.224:30996 22494A012CFA8C88B1D907E2CCB8409AC35B537B cert=dOPijSCG6FD89fYv5N2F9QoeK1od3tpG6VBE/kMY0Bt1aW/7aXPIzsENDoLWZe43gI8efw iat-mode=0",
+	"obfs4 51.79.88.193:45529 9A7BA1AE905FBE24FCEACCA09C42ED1B59340D6C cert=5TSiurscOytr5+TpcKG9qQry0UCMkq9eIlHr1ANxFJ0SWujMjUCOpWpDx30eUUIWHC0QSg iat-mode=0",
+	"obfs4 125.24.161.125:9052 E78066C5436110F6F6D9F1734551F5FCC9C9B500 cert=NmFmMIKVT8sQ8Jk/UXFivXCFIGb7UIIakMcegcMbqm855TBcbWWQ9qwKNpuGBz/qN6gCQw iat-mode=0",
+	"obfs4 217.217.243.39:8443 9E9968BFEAC4BB0A857400CBD83BD1BC77F64B4B cert=6iEWVvEBy3EaH5ESoimsujsHAhqll6kpJtPDJEJ8LAd9ZZqIzBom79R8mVsJPc8GiCuWCA iat-mode=2",
+	"obfs4 95.217.11.29:22134 9859875C752128125D3179F90BA6351744B09040 cert=W+qSHr6JcFY6UyJiXR3Ec5I5bYHFwDAXNq8HRQU3C56h/aJB8PQqbr8Sq04zKvhEWGbxEw iat-mode=0",
+	"obfs4 51.68.81.140:2098 F205CB5B969389061477609F8E03470B982F64C1 cert=6hFyrclX8Cg16jHGbtYqZxbGxj+p0flBn2EYZu+hvx/tGL4GROXSvBtwVQ1sRYFbi0++fQ iat-mode=0",
+}
+
+var webtunnelPool = []string{
+	"webtunnel [2001:db8:4b0:feea:81d8:72b9:95c1:cd62]:443 A6A5AF5E8410EB76647925F66AB2B5810A2C3791 url=https://wolkewolkewolke.zip/xrCyxOQH6HOe952fVtzKMGDN ver=0.0.4",
+	"webtunnel [2001:db8:f37a:49d9:c85f:3e7b:eb39:853e]:443 7E8CB9592C97B8ADD03D374A8E207CAAE5121336 url=https://gia.shallotfarm.org/3IMx3r7r1hKVsW136nx9vVMD ver=0.0.1",
+	"webtunnel [2001:db8:9aec:17d4:7f1d:9583:2d3f:f007]:443 65A498C6166E7C0201A16841F33A7A7A300AD391 url=http://45.77.33.28/c5f89c09483ef1b1f741db9f1a34bd9d ver=0.0.3",
+	"webtunnel [2001:db8:5d90:6cd2:fcac:ea1c:67b2:bee0]:443 D85733AB26E770DC4AB2ED44A0559504550D0925 url=https://qbxa1hay.xoomlia.com/k0tf6syz/ ver=0.0.3",
+	"webtunnel [2001:db8:c151:8ea6:7ecb:78eb:97e9:e26a]:443 F6AC833BA7AE92AD01FA99195EA51BBC3265A6E2 url=https://cdn-133.triplebit.dev/6e7f8g9h0i1j2k3l4m5n6o7p ver=0.0.2",
+	"webtunnel [2001:db8:4379:8b8c:f7e5:1baa:b4cc:a4e]:443 83A7EB300BF49150792D695CF4A15DF284492172 url=https://wt1.daslab.top/dasdaslablabwt1 ver=0.0.4",
+	"webtunnel [2001:db8:3be7:5113:eddb:210d:291f:b52c]:443 B6CFDBD17618C147903429AB1C0CC759933DB50E url=https://adm.unicoridor.ru/rtASSYlOJgl1nKtH8njdZLbs ver=0.0.4",
+	"webtunnel [2001:db8:ce90:3593:272e:4975:a031:55b]:443 12382A2F3912AD1983A97C8709CBAE47ADB60BE3 url=https://miranda.today/LWwxIXDHCyyScn7oDauPMTmX ver=0.0.3",
+	"webtunnel [2001:db8:72cd:a490:2485:20b0:4987:35ec]:443 C0B90984E829C31BB316CCB8A89CB4F318891871 url=https://download-134.as401332.net/7f8g9h0i1j2k3l4m5n6o7p8q ver=0.0.2",
+	"webtunnel [2001:db8:b1d5:4998:8150:f75b:988f:1f48]:443 216C8BB1C44FC2BFF7AF823B55AC38F113079B93 url=https://cdn-38.triplebit.dev/Bai8aXeiPhar5gai ver=0.0.2",
+}
+
+func builtinBridges(transport string) []string {
+	switch transport {
+	case "snowflake":
+		return []string{
+			"snowflake 192.0.2.3:80 2B280B23E1107BB62ABFC40DDCC8824814F80A72 fingerprint=2B280B23E1107BB62ABFC40DDCC8824814F80A72 url=https://1098762253.rsc.cdn77.org/ fronts=www.cdn77.com,www.phpmyadmin.net ice=stun:stun.l.google.com:19302,stun:stun.antisip.com:3478,stun:stun.bluesip.net:3478,stun:stun.dus.net:3478 utls-imitate=hellorandomizedalpn",
+		}
+	case "meek_lite":
+		return []string{
+			"meek_lite 192.0.2.20:80 97700DFE9F483596DDA6264C4D7DF7641E1E39CE url=https://meek.azureedge.net/ front=ajax.aspnetcdn.com utls=HelloRandomizedALPN",
+		}
+	case "conjure":
+		return []string{
+			"conjure 0.0.0.1:80 5E1062B0D9498D29A8C56DC5EB0FEFFB87DFAB7E url=https://registration.refraction.network/api fronts=cdn.sstatic.net,assets.tumblr.com transport=min",
+		}
+	case "webtunnel":
+		return rotateBridges("webtunnel", webtunnelPool, 2)
+	default: // obfs4 — rotate through the pool, 2 at a time
+		return rotateBridges("obfs4", obfs4Pool, 2)
+	}
+}
+
+func (s *Server) handleTorBridges(body json.RawMessage) (any, error) {
+	var req struct {
+		Transport string `json:"transport"`
+	}
+	_ = json.Unmarshal(body, &req)
+	lines := builtinBridges(req.Transport)
+	return map[string]any{"transport": req.Transport, "bridges": strings.Join(lines, "\n")}, nil
+}
+
+// moat (BridgeDB) protocol — request a captcha, then submit the solution to get
+// fresh bridges. See bridges.torproject.org. Uses the JSON:API content type.
+const moatBase = "https://bridges.torproject.org/moat"
+
+func moatPost(path string, payload any, proxyURL string) (map[string]any, error) {
+	b, _ := json.Marshal(payload)
+	req, _ := http.NewRequest(http.MethodPost, moatBase+path, bytes.NewReader(b))
+	req.Header.Set("Content-Type", "application/vnd.api+json")
+	req.Header.Set("Accept", "application/vnd.api+json")
+	tr := &http.Transport{}
+	if proxyURL != "" {
+		if pu, err := neturl.Parse(proxyURL); err == nil {
+			tr.Proxy = http.ProxyURL(pu)
+			// the MITM re-signs TLS with its own CA
+			tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+		}
+	}
+	client := &http.Client{Timeout: 40 * time.Second, Transport: tr}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	data, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != 200 {
+		return nil, errors.New("moat HTTP " + resp.Status)
+	}
+	var out map[string]any
+	if err := json.Unmarshal(data, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// moatProxy returns the local MITM proxy URL if the domain-fronting proxy is
+// running, so the moat request can ride over it (bridges.torproject.org is
+// often censored directly).
+func (s *Server) moatProxy() string {
+	if s.mitmdf != nil && s.mitmdf.Running() {
+		st := s.mitmdf.Status()
+		if p, ok := st["port"].(int); ok && p > 0 {
+			return fmt.Sprintf("http://127.0.0.1:%d", p)
+		}
+	}
+	return ""
+}
+
+func moatFirst(out map[string]any) map[string]any {
+	if arr, ok := out["data"].([]any); ok && len(arr) > 0 {
+		if m, ok := arr[0].(map[string]any); ok {
+			return m
+		}
+	}
+	return nil
+}
+
+// handleTorMoatFetch requests a captcha challenge for the chosen transport.
+func (s *Server) handleTorMoatFetch(body json.RawMessage) (any, error) {
+	var req struct {
+		Transport string `json:"transport"`
+	}
+	_ = json.Unmarshal(body, &req)
+	tr := req.Transport
+	if tr == "" || tr == "none" {
+		tr = "obfs4"
+	}
+	out, err := moatPost("/fetch", map[string]any{
+		"data": []map[string]any{{"version": "0.1.0", "type": "client-transports", "supported": []string{tr}}},
+	}, s.moatProxy())
+	if err != nil {
+		s.log("✗ moat fetch: "+err.Error(), "ERROR")
+		return map[string]any{"ok": false, "error": err.Error() + " — bridges.torproject.org is blocked here. Start Domain Fronting (MITM) first so this request can be fronted, or use Auto-get/Snowflake (built-in, no site needed)."}, nil
+	}
+	m := moatFirst(out)
+	if m == nil {
+		return map[string]any{"ok": false, "error": "unexpected moat response"}, nil
+	}
+	img, _ := m["image"].(string)
+	return map[string]any{
+		"ok": true, "transport": tr,
+		"challenge": m["challenge"], "id": m["id"],
+		"image": "data:image/jpeg;base64," + img,
+	}, nil
+}
+
+// handleTorMoatCheck submits the captcha solution and returns the bridges.
+func (s *Server) handleTorMoatCheck(body json.RawMessage) (any, error) {
+	var req struct {
+		Transport string `json:"transport"`
+		Challenge string `json:"challenge"`
+		ID        string `json:"id"`
+		Solution  string `json:"solution"`
+	}
+	if err := json.Unmarshal(body, &req); err != nil {
+		return nil, err
+	}
+	if req.ID == "" {
+		req.ID = "2"
+	}
+	out, err := moatPost("/check", map[string]any{
+		"data": []map[string]any{{
+			"id": req.ID, "type": "moat-solution", "version": "0.1.0",
+			"transport": req.Transport, "challenge": req.Challenge,
+			"solution": strings.TrimSpace(req.Solution), "qrcode": "false",
+		}},
+	}, s.moatProxy())
+	if err != nil {
+		return map[string]any{"ok": false, "error": err.Error()}, nil
+	}
+	m := moatFirst(out)
+	if m == nil {
+		return map[string]any{"ok": false, "error": "wrong captcha or no bridges returned"}, nil
+	}
+	var lines []string
+	if arr, ok := m["bridges"].([]any); ok {
+		for _, b := range arr {
+			if sline, ok := b.(string); ok {
+				lines = append(lines, sline)
+			}
+		}
+	}
+	if len(lines) == 0 {
+		return map[string]any{"ok": false, "error": "wrong captcha — try again"}, nil
+	}
+	s.log(fmt.Sprintf("✓ moat returned %d bridge(s)", len(lines)), "OK")
+	return map[string]any{"ok": true, "bridges": strings.Join(lines, "\n")}, nil
+}
+
+// handleTorDownload fetches a Tor Expert Bundle (tor + pluggable transports) and
+// extracts it into the app folder. Tor isn't published on a predictable GitHub
+// release, so it's fetched from the EasySNI repo via raw.githubusercontent.com
+// (reachable where api.github.com is blocked); a custom URL may be supplied.
+func (s *Server) handleTorDownload(body json.RawMessage) (any, error) {
+	var req struct {
+		URL string `json:"url"`
+	}
+	_ = json.Unmarshal(body, &req)
+	url := strings.TrimSpace(req.URL)
+	if url == "" {
+		switch runtime.GOOS {
+		case "windows":
+			url = "https://raw.githubusercontent.com/macan-dev/EasySNI/refs/heads/main/repo/tor-windows.zip"
+		default:
+			url = "https://raw.githubusercontent.com/macan-dev/EasySNI/refs/heads/main/repo/tor/tor-expert-bundle-" + runtime.GOOS + "-" + runtime.GOARCH + ".tar.gz"
+		}
+	}
+	dest := filepath.Join(appDir(), "tor")
+	if err := os.MkdirAll(dest, 0o755); err != nil {
+		return map[string]any{"ok": false, "error": err.Error()}, nil
+	}
+	s.log("Downloading Tor + transports…", "ACCENT")
+	data, err := ghdl.Download(url)
+	if err != nil {
+		s.log("✗ Tor download: "+err.Error(), "ERROR")
+		return map[string]any{"ok": false, "error": err.Error() + " — host the bundle in your repo or set a custom URL"}, nil
+	}
+	var n int
+	if strings.HasSuffix(strings.ToLower(url), ".zip") {
+		n, err = extractZipTo(data, dest)
+	} else {
+		n, err = extractTarGz(data, dest)
+	}
+	if err != nil {
+		return map[string]any{"ok": false, "error": err.Error()}, nil
+	}
+	s.log(fmt.Sprintf("✓ Tor bundle extracted (%d files) into %s — tor + lyrebird/conjure ready", n, dest), "OK")
+	return map[string]any{"ok": true, "files": n, "dir": dest}, nil
+}
+
+// extractZipTo unpacks a .zip into dest (flattening to base names), returns count.
+func extractZipTo(data []byte, dest string) (int, error) {
+	zr, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		return 0, err
+	}
+	count := 0
+	for _, f := range zr.File {
+		if f.FileInfo().IsDir() {
+			continue
+		}
+		name := filepath.Base(f.Name)
+		if name == "" {
+			continue
+		}
+		rc, err := f.Open()
+		if err != nil {
+			return count, err
+		}
+		out, err := os.OpenFile(filepath.Join(dest, name), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o755)
+		if err != nil {
+			rc.Close()
+			return count, err
+		}
+		if _, err := io.Copy(out, rc); err != nil {
+			out.Close()
+			rc.Close()
+			return count, err
+		}
+		out.Close()
+		rc.Close()
+		count++
+	}
+	return count, nil
+}
+
+// extractTarGz unpacks a .tar.gz into dest, preserving its internal directory
+// layout (tor/ and pluggable_transports/), and returns the file count.
+func extractTarGz(data []byte, dest string) (int, error) {
+	gz, err := gzip.NewReader(bytes.NewReader(data))
+	if err != nil {
+		return 0, err
+	}
+	defer gz.Close()
+	tr := tar.NewReader(gz)
+	count := 0
+	for {
+		h, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return count, err
+		}
+		clean := filepath.Clean(h.Name)
+		if strings.HasPrefix(clean, "..") || filepath.IsAbs(clean) {
+			continue // skip unsafe paths
+		}
+		target := filepath.Join(dest, clean)
+		switch h.Typeflag {
+		case tar.TypeDir:
+			_ = os.MkdirAll(target, 0o755)
+		case tar.TypeReg:
+			_ = os.MkdirAll(filepath.Dir(target), 0o755)
+			out, err := os.OpenFile(target, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o755)
+			if err != nil {
+				return count, err
+			}
+			if _, err := io.Copy(out, tr); err != nil {
+				out.Close()
+				return count, err
+			}
+			out.Close()
+			count++
+		}
+	}
+	return count, nil
+}
+
+// ---- tun2socks (xray TUN without sing-box) --------------------------------
+
+func (s *Server) handleTun2socksDownload(body json.RawMessage) (any, error) {
+	var req struct {
+		Mirror string `json:"mirror"`
+	}
+	_ = json.Unmarshal(body, &req)
+	ghdl.SetMirror(req.Mirror)
+	dir := filepath.Join(appDir(), "tun2socks")
+	s.log("Downloading tun2socks…", "ACCENT")
+	path, err := tun2socks.Download(dir, s.bus.Log)
+	if err != nil {
+		s.log("✗ "+err.Error(), "ERROR")
+		return map[string]any{"ok": false, "error": err.Error()}, nil
+	}
+	return map[string]any{"ok": true, "path": path}, nil
+}
+
+func (s *Server) handleTun2socksStart(body json.RawMessage) (any, error) {
+	var req struct {
+		BinPath   string `json:"bin_path"`
+		SocksHost string `json:"socks_host"`
+		SocksPort int    `json:"socks_port"`
+	}
+	_ = json.Unmarshal(body, &req)
+	if req.SocksPort == 0 {
+		req.SocksPort = 40808
+	}
+	if err := s.t2s.Start(req.BinPath, req.SocksHost, req.SocksPort, nil); err != nil {
+		s.log("✗ tun2socks: "+err.Error(), "ERROR")
+		return nil, err
+	}
+	return s.t2s.Status(), nil
+}
+
+func (s *Server) handleTun2socksStop(json.RawMessage) (any, error) {
+	s.t2s.Stop()
+	return s.t2s.Status(), nil
+}
+
+func (s *Server) handleTun2socksStatus(json.RawMessage) (any, error) {
+	return s.t2s.Status(), nil
 }
 
 // ---- system proxy (point the OS at xray's local proxy) --------------------
@@ -1107,11 +1601,17 @@ func (s *Server) handleSingboxFind(json.RawMessage) (any, error) {
 
 func (s *Server) handleSingboxDownload(body json.RawMessage) (any, error) {
 	var req struct {
-		Dir string `json:"dir"`
+		Dir    string `json:"dir"`
+		Mirror string `json:"mirror"`
 	}
 	_ = json.Unmarshal(body, &req)
+	ghdl.SetMirror(req.Mirror)
+	dir := strings.TrimSpace(req.Dir)
+	if dir == "" {
+		dir = filepath.Join(appDir(), "singbox")
+	}
 	s.log("Downloading sing-box…", "ACCENT")
-	path, err := singbox.Download(strings.TrimSpace(req.Dir), s.bus.Log)
+	path, err := singbox.Download(dir, s.bus.Log)
 	if err != nil {
 		s.log("✗ sing-box download failed: "+err.Error(), "ERROR")
 		return map[string]any{"ok": false, "error": err.Error()}, nil
@@ -1157,6 +1657,35 @@ func (s *Server) handleSingboxStatus(json.RawMessage) (any, error) {
 }
 
 // ---- WinDivert ------------------------------------------------------------
+
+// handleWinDivertDownload fetches WinDivert64.sys + WinDivert.dll from the
+// EasySNI repo (raw.githubusercontent.com, reachable where api.github.com is
+// blocked) into a windivert/ folder.
+func (s *Server) handleWinDivertDownload(json.RawMessage) (any, error) {
+	dir := filepath.Join(appDir(), "windivert")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return map[string]any{"ok": false, "error": err.Error()}, nil
+	}
+	files := []struct{ name, url string }{
+		{"WinDivert64.sys", "https://raw.githubusercontent.com/macan-dev/EasySNI/refs/heads/main/WinDivert64.sys"},
+		{"WinDivert.dll", "https://raw.githubusercontent.com/macan-dev/EasySNI/refs/heads/main/WinDivert.dll"},
+	}
+	s.log("Downloading WinDivert driver…", "ACCENT")
+	n := 0
+	for _, f := range files {
+		data, err := ghdl.Download(f.url)
+		if err != nil {
+			s.log("✗ "+f.name+": "+err.Error(), "ERROR")
+			return map[string]any{"ok": false, "error": f.name + ": " + err.Error()}, nil
+		}
+		if err := os.WriteFile(filepath.Join(dir, f.name), data, 0o755); err != nil {
+			return map[string]any{"ok": false, "error": err.Error()}, nil
+		}
+		n++
+	}
+	s.log("✓ WinDivert downloaded to "+dir, "OK")
+	return map[string]any{"ok": true, "dir": dir, "files": n}, nil
+}
 
 func (s *Server) handleWinDivertStatus(json.RawMessage) (any, error) {
 	return windivert.Check(), nil
@@ -1250,6 +1779,114 @@ func (s *Server) handlePsiphonStop(json.RawMessage) (any, error) {
 
 func (s *Server) handlePsiphonStatus(json.RawMessage) (any, error) {
 	return s.psi.Status(), nil
+}
+
+// handlePsiphonDownload fetches the prebuilt Psiphon Windows client into the app
+// directory so the user can run it and point its upstream proxy at the MITM.
+func (s *Server) handlePsiphonDownload(json.RawMessage) (any, error) {
+	const url = "https://raw.githubusercontent.com/macan-dev/EasySNI/refs/heads/main/repo/psiphon3.exe"
+	dir := filepath.Join(appDir(), "psiphon")
+	_ = os.MkdirAll(dir, 0o755)
+	dest := filepath.Join(dir, "psiphon3.exe")
+	s.log("Downloading Psiphon (psiphon3.exe)…", "ACCENT")
+	client := &http.Client{Timeout: 120 * time.Second}
+	resp, err := client.Get(url)
+	if err != nil {
+		s.log("✗ "+err.Error(), "ERROR")
+		return map[string]any{"ok": false, "error": err.Error()}, nil
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return map[string]any{"ok": false, "error": "HTTP " + resp.Status}, nil
+	}
+	f, err := os.OpenFile(dest, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o755)
+	if err != nil {
+		return map[string]any{"ok": false, "error": err.Error()}, nil
+	}
+	n, err := io.Copy(f, resp.Body)
+	f.Close()
+	if err != nil {
+		return map[string]any{"ok": false, "error": err.Error()}, nil
+	}
+	s.log("✓ Psiphon saved to "+dest+" ("+fmt.Sprintf("%.1f", float64(n)/1e6)+" MB)", "OK")
+	return map[string]any{"ok": true, "path": dest, "bytes": n}, nil
+}
+
+// handlePsiphonOpen launches the downloaded Psiphon client.
+func (s *Server) handlePsiphonOpen(json.RawMessage) (any, error) {
+	a := appDir()
+	candidates := []string{
+		filepath.Join(a, "psiphon", "psiphon3.exe"), filepath.Join(a, "psiphon", "psiphon3"),
+		filepath.Join(a, "psiphon3.exe"), filepath.Join(a, "psiphon3"),
+	}
+	var bin string
+	for _, c := range candidates {
+		if st, err := os.Stat(c); err == nil && !st.IsDir() {
+			bin = c
+			break
+		}
+	}
+	if bin == "" {
+		return map[string]any{"ok": false, "error": "Psiphon not found — click Download Psiphon first"}, nil
+	}
+	if err := launchDetached(bin); err != nil {
+		s.log("✗ open Psiphon: "+err.Error(), "ERROR")
+		return map[string]any{"ok": false, "error": err.Error()}, nil
+	}
+	s.log("Launched Psiphon: "+bin, "OK")
+	return map[string]any{"ok": true, "path": bin}, nil
+}
+
+// handlePsiphonOverMitm chains Psiphon through the client-side domain-fronting
+// MITM proxy: it starts the MITM proxy (if needed) and then launches Psiphon with
+// its upstream proxy pointed at it. Mirrors the "PsiphonOverMITM" architecture
+// (Psiphon → local MITM/domain-fronting → Psiphon network).
+func (s *Server) handlePsiphonOverMitm(body json.RawMessage) (any, error) {
+	var req struct {
+		MitmPort  int `json:"mitm_port"`
+		SocksPort int `json:"socks_port"`
+		HTTPPort  int `json:"http_port"`
+	}
+	_ = json.Unmarshal(body, &req)
+	if req.MitmPort == 0 {
+		req.MitmPort = 8087
+	}
+	// 1) bring up the domain-fronting MITM proxy if it isn't already running
+	if !s.mitmdf.Running() {
+		s.log("Psiphon-over-MITM: starting domain-fronting proxy…", "ACCENT")
+		if err := s.mitmdf.Start(mitmdf.Config{ListenHost: "127.0.0.1", ListenPort: req.MitmPort}); err != nil {
+			return nil, fmt.Errorf("MITM proxy: %w", err)
+		}
+	} else if st := s.mitmdf.Status(); st["port"] != nil {
+		if p, ok := st["port"].(int); ok && p > 0 {
+			req.MitmPort = p
+		}
+	}
+	// 2) start Psiphon with its upstream proxy pointed at the MITM proxy
+	upstream := fmt.Sprintf("http://127.0.0.1:%d", req.MitmPort)
+	s.log("Psiphon-over-MITM: MITM ready. Upstream proxy = "+upstream, "OK")
+	if err := s.psi.Start(psiphon.Options{
+		UpstreamProxyURL: upstream,
+		LocalSocksPort:   req.SocksPort,
+		LocalHTTPPort:    req.HTTPPort,
+	}, s.bus.Log); err != nil {
+		// The embedded Psiphon engine isn't compiled in (it can't be `go get`-ed
+		// cleanly). That's fine — use the same model as the upstream project:
+		// keep the MITM running and tell the user to point their Psiphon app's
+		// upstream proxy at it.
+		s.log("Set your Psiphon app's Upstream Proxy to "+upstream+" (HTTP).", "ACCENT")
+		return map[string]any{
+			"running":   false,
+			"external":  true,
+			"mitm_port": req.MitmPort,
+			"upstream":  upstream,
+			"note":      "MITM proxy is running. In the Psiphon app, set Settings → Proxy → Upstream Proxy to " + upstream + " (HTTP).",
+		}, nil
+	}
+	out := s.psi.Status()
+	out["mitm_port"] = req.MitmPort
+	out["upstream"] = upstream
+	return out, nil
 }
 
 // ---- CDN fronting edge scan ----------------------------------------------
@@ -1372,4 +2009,26 @@ func splitLines(s string) []string {
 		}
 	}
 	return out
+}
+
+// launchDetached starts an external program without blocking.
+func launchDetached(bin string) error {
+	cmd := exec.Command(bin)
+	if d := filepath.Dir(bin); d != "" {
+		cmd.Dir = d
+	}
+	return cmd.Start()
+}
+
+// appDir returns the directory of the running executable (or cwd as fallback),
+// the base under which per-tool download folders (xray-core/, singbox/,
+// tun2socks/, psiphon/, tor/) are created.
+func appDir() string {
+	if exe, err := os.Executable(); err == nil {
+		return filepath.Dir(exe)
+	}
+	if wd, err := os.Getwd(); err == nil {
+		return wd
+	}
+	return "."
 }

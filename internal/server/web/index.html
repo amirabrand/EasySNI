@@ -72,6 +72,46 @@
   .navsec{font-size:.66rem;color:var(--dim);text-transform:uppercase;letter-spacing:.14em;font-weight:700;
     padding:16px 12px 6px}
   .navsec:first-child{padding-top:4px}
+.navsec{cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none}
+.navsec-caret{transition:transform .18s ease;opacity:.6;font-size:11px}
+.navsec.collapsed .navsec-caret{transform:rotate(-90deg)}
+.navsec-items{display:flex;flex-direction:column;gap:2px}
+/* Donation */
+.don-hero{text-align:center;padding:18px 10px 6px}
+.don-heart{font-size:46px;line-height:1;filter:drop-shadow(0 4px 18px rgba(255,90,120,.55));animation:donbeat 1.6s ease-in-out infinite}
+@keyframes donbeat{0%,100%{transform:scale(1)}14%{transform:scale(1.18)}28%{transform:scale(1)}42%{transform:scale(1.12)}}
+.don-hero h1{margin:8px 0 4px;background:linear-gradient(90deg,#ff6b9d,#ffd36b,#5aa9ff);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.don-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px;margin-top:14px}
+.don-card{position:relative;border:1px solid rgba(255,255,255,.10);border-radius:16px;padding:16px;background:linear-gradient(160deg,rgba(255,255,255,.05),rgba(255,255,255,.015));overflow:hidden;transition:transform .15s ease,border-color .15s ease}
+.don-card:hover{transform:translateY(-3px);border-color:rgba(90,169,255,.5)}
+.don-card::before{content:"";position:absolute;inset:0 0 auto 0;height:3px;background:var(--cc,linear-gradient(90deg,#5aa9ff,#ff6b9d))}
+.don-card .don-head{display:flex;align-items:center;gap:9px;margin-bottom:12px}
+.don-card .don-sym{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:#0b0e14;background:var(--cc,#5aa9ff)}
+.don-card .don-name{font-weight:700}.don-card .don-net{font-size:11px;opacity:.6}
+.don-qr{display:block;width:170px;height:170px;margin:0 auto;border-radius:12px;background:#fff;padding:8px}
+.don-addr{margin-top:12px;display:flex;gap:6px;align-items:center;background:rgba(0,0,0,.25);border-radius:9px;padding:7px 9px}
+.don-addr code{font-family:var(--mono);font-size:11px;word-break:break-all;flex:1;opacity:.92}
+.don-copy{flex:none;cursor:pointer;border:none;background:var(--cc,#5aa9ff);color:#0b0e14;font-weight:700;border-radius:7px;padding:5px 9px;font-size:12px}
+.don-copy:active{transform:scale(.95)}
+/* Config table */
+.cfgtablewrap{overflow-x:auto;border:1px solid rgba(255,255,255,.08);border-radius:12px}
+.cfgtable{width:100%;border-collapse:collapse;font-size:13px}
+.cfgtable thead th{position:sticky;top:0;background:rgba(20,24,34,.96);text-align:left;padding:9px 12px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);font-weight:600;border-bottom:1px solid rgba(255,255,255,.1);z-index:1}
+.cfgtable td{padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.05);white-space:nowrap}
+.cfgtable tbody tr{cursor:pointer;transition:background .1s}
+.cfgtable tbody tr:hover{background:rgba(255,255,255,.04)}
+.cfgtable tr.sel{background:rgba(90,169,255,.16)}
+.cfgtable tr.sel:hover{background:rgba(90,169,255,.22)}
+.cfgtable td.num{color:var(--dim);font-family:var(--mono);width:42px;text-align:right}
+.cfgtable .nmcell{max-width:1px;width:99%;white-space:normal}
+.cfgtable .nm{font-weight:600}
+.cfgtable .proto{color:var(--dim);font-size:11px;text-transform:uppercase;margin-left:4px}
+.cfgtable .dotc{display:inline-block;width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.18);margin-right:7px;vertical-align:middle}
+.cfgtable tr.active .dotc{background:var(--ok,#34d399);box-shadow:0 0 8px rgba(52,211,153,.8)}
+.cfgtable .pgreen{color:#34d399;font-family:var(--mono)}.cfgtable .pamber{color:#fbbf24;font-family:var(--mono)}.cfgtable .pred{color:#f87171;font-family:var(--mono)}
+.cfgtable .muted{color:var(--dim)}
+.cfgtable .pgreen small,.cfgtable .pamber small,.cfgtable .pred small{opacity:.6;font-size:10px;margin-left:1px}
+.cfgtable .spd{color:var(--accent2);font-family:var(--mono);font-size:12px}
   .navbtn{display:flex;align-items:center;gap:11px;width:100%;text-align:start;background:transparent;
     border:none;color:var(--dim);padding:10px 12px;border-radius:var(--r-sm);cursor:pointer;font-family:inherit;
     font-size:.9rem;font-weight:500;transition:.13s;margin-bottom:2px;position:relative}
@@ -86,6 +126,8 @@
 
   main{grid-area:main;overflow:auto;padding:clamp(16px,2.4vw,34px);display:flex;justify-content:center}
   .panel{display:none;width:100%;max-width:var(--maxw)}
+  .panel-full.active{max-width:none;display:flex;flex-direction:column;height:100%}
+  .panel-full .cfgtablewrap{max-height:400px;overflow:auto}
   .panel.active{display:block;animation:fade .3s ease}
   @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
   .panel h1{font-size:clamp(1.3rem,1.1vw + 1rem,1.62rem);font-weight:700;margin:0 0 6px;color:var(--bright);letter-spacing:-.015em}
@@ -366,9 +408,14 @@
     button.act{padding:10px 14px;font-size:.8rem}
   }
   @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+#dlbar{position:fixed;top:0;left:0;right:0;height:4px;background:rgba(96,165,250,.18);z-index:10050;overflow:hidden;display:none}
+#dlbar.on{display:block;box-shadow:0 0 10px rgba(96,165,250,.6)}
+#dlbar .dlbar-fill{position:absolute;height:100%;width:35%;background:linear-gradient(90deg,transparent,var(--accent2,#60a5fa),#fff,var(--accent2,#60a5fa),transparent);animation:dlslide 1.05s ease-in-out infinite}
+@keyframes dlslide{0%{left:-35%}100%{left:100%}}
 </style>
 </head>
 <body>
+<div id="dlbar" aria-hidden="true"><div class="dlbar-fill"></div></div>
 <div id="gprog"></div>
 <div class="modal" id="modal"><div class="box" id="modalBox"></div></div>
 <div class="app">
@@ -377,7 +424,8 @@
     <div class="logo"><span class="mark">V2</span> <span><b>V2Ray</b><span class="z">Ez</span></span> <small data-i18n="hdr_edition">By MacanDev · @EzAccess1</small></div>
     <div class="head-status">
       <span><span id="dotProxy" class="dot"></span><span data-i18n="hdr_proxy">Proxy</span> <b id="sProxy">off</b></span>
-      <span><span id="dotSplus" class="dot"></span><span data-i18n="hdr_splus">SPlus</span> <b id="sSplus">off</b></span>
+      <span><span id="dotMitm" class="dot"></span><span data-i18n="hdr_mitm">MITM</span> <b id="sMitm">off</b></span>
+      <span><span id="dotTor" class="dot"></span><span data-i18n="hdr_tor">Tor</span> <b id="sTor">off</b></span>
       <span class="xpill off" id="hdrXray"><span data-i18n="hdr_xray">xray</span> <b id="hdrXrayState">off</b><label class="hdrtun" title="TUN"><input type="checkbox" id="hdrTun"><span data-i18n="hdr_tun">TUN</span></label><button id="hdrSysSet" data-i18n="hdr_sysset" title="Set the OS system proxy to xray">Set Proxy</button><button id="hdrSysClear" data-i18n="hdr_sysclear" title="Clear the OS system proxy">Clear Proxy</button><button id="hdrXrayStart" data-i18n="c_start">Start</button><button id="hdrXrayStop" hidden data-i18n="c_stop">Stop</button></span>
       <button class="themebtn" id="themeBtn" title="Toggle light / dark theme">☀</button>
       <button class="langbtn" id="langBtn">فارسی</button>
@@ -388,9 +436,7 @@
 
   <main>
     <!-- CONFIGS (LIBRARY / MANAGER) -->
-    <section class="panel" data-panel="configs">
-      <h1 data-i18n="cfgm_h1">Config Library</h1>
-      <p class="sub" data-i18n="cfgm_sub">Organize your configs into groups, import subscriptions, drag-and-drop links, then test, share (QR / copy), and connect. Ctrl/⌘-click to multi-select; press Enter to connect the selected one. Everything is saved automatically.</p>
+    <section class="panel panel-full" data-panel="configs">
 
       <div class="card">
         <div class="grouptabs" id="cfgm_groups"></div>
@@ -398,19 +444,25 @@
           <button class="act btn-ghost" id="cfgm_addgroup" data-i18n="c_add_group">+ Group</button>
           <button class="act btn-ghost" id="cfgm_rengroup" data-i18n="c_rename_group">Rename</button>
           <button class="act btn-ghost" id="cfgm_delgroup" data-i18n="c_del_group">Delete group</button>
+          <button class="act btn-ghost" id="cfgm_folder" data-i18n="c_import_folder">Import from folder</button>
           <span class="scanmeta" id="cfgm_count"></span>
         </div>
       </div>
 
       <div class="card">
-        <div class="row" style="margin-bottom:10px">
+        <div class="row" style="margin-bottom:10px;flex-wrap:wrap;gap:6px">
           <h2 style="margin:0" data-i18n="cfgm_list_t">Configs</h2>
           <span style="flex:1"></span>
           <button class="act btn-ghost" id="cfgm_selall" data-i18n="c_select_all">Select all</button>
-          <button class="act btn-ghost" id="cfgm_testall" data-i18n="c_test_group">Ping test group</button>
+          <button class="act btn-ghost" id="cfgm_pingall" data-i18n="c_ping_group">Ping Test Group</button>
+          <button class="act btn-ghost" id="cfgm_relayall" data-i18n="c_relay_group">Relay Test Group</button>
+          <button class="act btn-ghost" id="cfgm_speedall" data-i18n="c_speed_group">SpeedTest Group</button>
+          <button class="act btn-ghost" id="cfgm_sortrelay" data-i18n="c_sort_relay">Sort by Relay</button>
+          <button class="act btn-stop" id="cfgm_stoptest" data-i18n="c_stop_test" style="display:none">Stop test</button>
           <button class="act btn-ghost" id="cfgm_copyall" data-i18n="c_copy_group">Copy group</button>
         </div>
-        <div id="cfgm_list" class="cfglist"></div>
+        <div id="cfgm_list" class="cfgtablewrap"></div>
+        <p class="hint" data-i18n="cfgm_table_hint">Click to select · Ctrl/⌘ or Shift for multi-select · double-click to connect · right-click for more · Delete removes selected · Esc stops a running test.</p>
       </div>
 
       <div class="card">
@@ -617,9 +669,15 @@
             <select id="mdf_doh_preset">
               <option value="cf1">Cloudflare · 1.1.1.1</option>
               <option value="cf2">Cloudflare · 1.0.0.1</option>
-              <option value="google1">Google · 8.8.8.8 (front www.google.com)</option>
-              <option value="google2">Google · 8.8.4.4 (front www.google.com)</option>
+              <option value="cffam">Cloudflare Family · 1.1.1.3</option>
+              <option value="google1">Google · 8.8.8.8</option>
+              <option value="google2">Google · 8.8.4.4</option>
               <option value="quad9">Quad9 · 9.9.9.9</option>
+              <option value="adguard">AdGuard (unfiltered) · 94.140.14.140</option>
+              <option value="opendns">OpenDNS · 208.67.222.222</option>
+              <option value="cleanbrowsing">CleanBrowsing Family</option>
+              <option value="comodo">Comodo · 8.26.56.26</option>
+              <option value="nord">NordVPN</option>
               <option value="custom" data-i18n="opt_custom">Custom…</option>
             </select>
           </label>
@@ -655,6 +713,49 @@
         <div class="row"><button class="act btn-alt" id="mdf_ca" data-i18n="c_download_ca">Download CA (.pem)</button><button class="act btn-alt" id="mdf_ca_crt" data-i18n="c_download_ca_crt">Download CA (.crt · Windows)</button><span class="scanmeta" id="mdf_cameta"></span></div>
         <div class="warnbox" style="margin-top:12px" data-i18n="mdf_warn">The CA decrypts your HTTPS on this device only, to re-front it — the private key never leaves your machine. Fronting only helps for sites already on a supported CDN, and works against SNI-based blocking (not destination-IP sanctions). Use within each provider's terms and your local laws.</div>
         <p class="hint" style="margin-top:14px;text-align:center;opacity:.85" data-i18n="mdf_thanks">Thanks to patterniha — this is V2RayEz's own implementation of the MITM domain-fronting technique.</p>
+      </div>
+    </section>
+
+    <!-- TOR -->
+    <section class="panel" data-panel="tor">
+      <h1><span data-i18n="tor_h1">Tor</span> <span class="tag" style="font-size:10px;color:var(--accent2);border:1px solid rgba(90,169,255,.42);border-radius:5px;padding:2px 7px;vertical-align:middle;font-family:var(--mono);letter-spacing:.12em" data-i18n="badge_new">NEW</span></h1>
+      <p class="sub" data-i18n="tor_sub">Connect through the Tor network with optional pluggable transports for censored networks, and route the whole system through it with TUN. Needs the Tor Expert Bundle (the tor binary plus transport binaries like lyrebird/obfs4proxy and snowflake-client).</p>
+
+      <div class="card">
+        <h2 data-i18n="tor_step1">① Transport &amp; bridges</h2>
+        <div class="grid g2">
+          <label><span class="lbl" data-i18n="f_tor_transport">Pluggable transport</span>
+            <select id="tor_transport">
+              <option value="none" data-i18n="opt_tor_none">None (direct Tor)</option>
+              <option value="obfs4">obfs4</option>
+              <option value="snowflake">snowflake</option>
+              <option value="meek_lite">meek (meek_lite)</option>
+              <option value="webtunnel">webtunnel</option>
+              <option value="conjure">conjure (refraction)</option>
+            </select>
+          </label>
+          <label><span class="lbl" data-i18n="f_tor_socks">Local SOCKS port</span><input id="tor_socks" value="9050"></label>
+        </div>
+        <p class="hint" data-i18n="tor_bridges_h">Paste bridge lines (one per line) for the selected transport — get them from https://bridges.torproject.org or the Tor Browser. Not needed for "None".</p>
+        <textarea id="tor_bridges" style="min-height:96px;font-size:12px" placeholder="obfs4 1.2.3.4:443 FINGERPRINT cert=... iat-mode=0"></textarea>
+        <div class="row"><button class="act btn-ghost" id="tor_getbridges" data-i18n="c_tor_getbridges">Auto-get bridges</button><button class="act btn-ghost" id="tor_snowflake" data-i18n="c_tor_snowflake">Get Snowflake bridge</button><button class="act btn-ghost" id="tor_captcha" data-i18n="c_tor_captcha">Request bridges (captcha)</button><button class="act btn-alt" id="tor_download" data-i18n="c_tor_download">Download Tor + dependencies</button></div>
+        <div class="grid g2" style="margin-top:10px">
+          <label><span class="lbl" data-i18n="f_tor_bin">tor binary path (blank = auto-detect)</span><input id="tor_bin" placeholder="tor / tor.exe"></label>
+          <label><span class="lbl" data-i18n="f_tor_pt">Transport binary path (blank = auto)</span><input id="tor_pt" placeholder="lyrebird / snowflake-client"></label>
+        </div>
+        <label class="checkrow" style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" id="tor_tun"><span data-i18n="f_tor_tun">Route the whole system through Tor (TUN — needs admin &amp; tun2socks)</span></label>
+      </div>
+
+      <div class="card">
+        <h2 data-i18n="tor_step2">② Connect</h2>
+        <div class="row">
+          <button class="act btn-go" id="tor_start" data-i18n="c_connect">Connect</button>
+          <button class="act btn-stop" id="tor_stop" disabled data-i18n="c_stop">Stop</button>
+          <span class="pill off" id="tor_pill"><span class="dot"></span><span data-i18n="c_stopped">stopped</span></span>
+          <span class="scanmeta" id="tor_meta"></span>
+        </div>
+        <div id="tor_out"></div>
+        <div class="warnbox" style="margin-top:12px" data-i18n="tor_warn">Once connected, set your browser/app SOCKS5 proxy to 127.0.0.1 and the port above, or enable TUN to route everything. Pluggable transports require their binaries from the Tor Expert Bundle.</div>
       </div>
     </section>
 
@@ -711,6 +812,7 @@
       <div class="card">
         <h2 data-i18n="xray_bin">Engines</h2>
         <label><span class="lbl" data-i18n="f_xray_path">Path to xray (leave empty to auto-detect)</span><input id="x_bin" placeholder="C:\\path\\to\\xray.exe"></label>
+        <label style="margin-top:10px"><span class="lbl" data-i18n="f_gh_mirror">GitHub download mirror (optional — use if GitHub downloads are blocked in your region, e.g. https://gh-proxy.com/)</span><input id="dl_mirror" placeholder="https://gh-proxy.com/"></label>
         <div class="row">
           <button class="act btn-ghost" id="x_detect" data-i18n="c_detect">Detect xray</button>
           <button class="act btn-alt" id="x_download" data-i18n="c_download_xray">Download xray</button>
@@ -720,6 +822,7 @@
         <div class="row">
           <button class="act btn-ghost" id="sb_detect" data-i18n="c_detect_singbox">Detect sing-box</button>
           <button class="act btn-alt" id="sb_download" data-i18n="c_download_singbox">Download sing-box</button>
+          <button class="act btn-alt" id="t2s_download" data-i18n="c_download_tun2socks">Download tun2socks</button>
           <span class="scanmeta" id="sb_binmeta"></span>
         </div>
       </div>
@@ -731,6 +834,7 @@
           <label><span class="lbl" data-i18n="f_engine">Engine</span>
             <select id="xr_engine">
               <option value="xray" data-i18n="opt_xray_socks">xray — local SOCKS5 proxy</option>
+              <option value="xray-tun" data-i18n="opt_xray_tun">xray + TUN (tun2socks — no sing-box)</option>
               <option value="singbox" data-i18n="opt_singbox_tun">sing-box — system-wide TUN VPN</option>
             </select>
           </label>
@@ -999,6 +1103,7 @@
         <div id="wd_status" class="result" style="margin-top:0" data-i18n="wd_checking">Checking…</div>
         <label style="margin-top:16px"><span class="lbl" data-i18n="f_wd_path">WinDivert folder (optional — where WinDivert64.sys lives)</span><input id="wd_path" placeholder="C:\\Path\\to\\WinDivert"></label>
         <div class="row">
+          <button class="act btn-alt" id="wd_download" data-i18n="c_download_wd">Download WinDivert</button>
           <button class="act btn-go" id="wd_install" data-i18n="c_install_wd">Install &amp; start</button>
           <button class="act btn-stop" id="wd_uninstall" data-i18n="c_uninstall_wd">Stop &amp; remove</button>
           <button class="act btn-ghost" id="wd_refresh" data-i18n="c_refresh">Refresh</button>
@@ -1024,6 +1129,9 @@
         </div>
         <div class="row">
           <button class="act btn-go" id="psi_start" data-i18n="c_start_psi">Start Psiphon</button>
+          <button class="act btn-alt" id="psi_overmitm" data-i18n="c_psi_overmitm">Start Psiphon over MITM</button>
+          <button class="act btn-alt" id="psi_download" data-i18n="c_psi_download">Download Psiphon</button>
+          <button class="act btn-alt" id="psi_open" data-i18n="c_psi_open">Open Psiphon</button>
           <button class="act btn-stop" id="psi_stop" disabled data-i18n="c_stop">Stop</button>
           <span class="pill off" id="psi_pill"><span class="dot"></span><span data-i18n="c_stopped">stopped</span></span>
         </div>
@@ -1041,10 +1149,39 @@
     </section>
 
     <!-- ABOUT -->
+    <section class="panel" data-panel="update">
+      <h1><span data-i18n="upd_h1">App Update</span> <span class="tag" style="font-size:10px;color:var(--accent2);border:1px solid rgba(90,169,255,.42);border-radius:5px;padding:2px 7px;vertical-align:middle;font-family:var(--mono);letter-spacing:.12em" data-i18n="badge_new">NEW</span></h1>
+      <p class="sub" data-i18n="upd_sub">Check for a newer version of V2RayEz and download it. Updates are fetched over raw.githubusercontent.com, which works where api.github.com is blocked.</p>
+      <div class="card">
+        <div class="row" style="align-items:center">
+          <span class="scanmeta" data-i18n="upd_current">Current version</span>
+          <b id="upd_cur" class="ver">v—</b>
+        </div>
+        <label style="margin-top:10px"><span class="lbl" data-i18n="upd_mirror">GitHub mirror (optional, if blocked)</span><input id="upd_mirror" placeholder="https://gh-proxy.com/"></label>
+        <div class="row" style="margin-top:10px">
+          <button class="act btn-go" id="upd_check" data-i18n="upd_check">Check for updates</button>
+          <button class="act btn-alt" id="upd_download" data-i18n="upd_download" style="display:none">Download update</button>
+          <span class="scanmeta" id="upd_meta"></span>
+        </div>
+        <div id="upd_out"></div>
+        <p class="hint" style="margin-top:10px">GitHub: <a href="https://github.com/macan-dev/EasySNI" target="_blank" rel="noopener" style="color:var(--accent2)">github.com/macan-dev/EasySNI</a></p>
+      </div>
+    </section>
+
+    <section class="panel" data-panel="donation">
+      <div class="don-hero">
+        <div class="don-heart">&#9829;</div>
+        <h1 data-i18n="don_h1">Support V2RayEz</h1>
+        <p class="sub" data-i18n="don_sub">V2RayEz is free and open. If it helps you stay connected, a donation keeps development and servers alive. Thank you for your support!</p>
+      </div>
+      <div class="don-grid" id="don_grid"></div>
+      <p class="hint" style="text-align:center;margin-top:18px" data-i18n="don_thanks">Every contribution, big or small, is deeply appreciated. \u2764\ufe0f</p>
+    </section>
+
     <section class="panel" data-panel="about">
       <h1 data-i18n="about_h1">About</h1>
       <div class="hero">
-        <span class="ver">V2RayEz · v4.5.1</span>
+        <span class="ver">V2RayEz · v4.6.5</span>
         <h1 data-i18n="about_app">V2RayEz — DPI Bypass &amp; CDN Toolkit</h1>
         <p data-i18n="about_tagline">An all-in-one panel for beating DPI: SNI tunnel, Cloudflare edge &amp; config scanners that build ranked working configs, an xray client you can run on-device, plus Psiphon and SPlus tunnels — one fast, offline Go app you can open from any device on your network.</p>
         <div class="credit">
@@ -1054,6 +1191,12 @@
           </div>
           <a class="tg" href="https://t.me/EzAccess1" target="_blank" rel="noopener">
             <span style="font-family:var(--mono);font-weight:700">✈</span> @EzAccess1
+          </a>
+          <a class="tg" href="https://github.com/macan-dev/EasySNI" target="_blank" rel="noopener">
+            <span style="font-family:var(--mono);font-weight:700">⌥</span> GitHub
+          </a>
+          <a class="tg" href="https://www.youtube.com/@MacanDev" target="_blank" rel="noopener" style="border-color:rgba(255,90,90,.5)">
+            <span style="font-family:var(--mono);font-weight:700;color:#ff5a5a">▶</span> <span data-i18n="about_youtube">YouTube tutorial</span>
           </a>
         </div>
       </div>
@@ -1076,6 +1219,9 @@
       <div class="card">
         <h2 data-i18n="about_updates_t">What's new</h2>
         <ul class="changelog">
+          <li><b>v4.6.5</b> <span data-i18n="about_u_465">— Config table shows 10 rows then scrolls; Auto-get bridges now rotates through obfs4 &amp; WebTunnel pools (2 at a time for conflux); whole-system Tor (TUN) routing fixed — tun2socks log level corrected and the TUN adapter is auto-configured with default route + DNS, keeping bridge IPs on the physical link; WinDivert.dll loads from the windivert/ folder; ezsni-config.json moved into the configs folder.</span></li>
+          <li><b>v4.6.1</b> <span data-i18n="about_u_461">— Donation tab with QR codes for BTC/ETH/SOL/BNB/TRON/USDT; WinDivert one-click download; collapsible sidebar sections (Scanners collapsed by default); updates now read the official GitHub releases (github.com/macan-dev/EasySNI) without api.github.com; GitHub &amp; YouTube links; WinDivert moved to Library.</span></li>
+          <li><b>v4.5.2</b> <span data-i18n="about_u_452">— App Update tab (check &amp; download new versions without api.github.com); full-archive extract for sing-box/tun2socks; all config files saved in one configs/ folder; Tor pluggable transports incl. conjure with captcha bridge requests; download progress bar.</span></li>
           <li><b>v4.5.1</b> <span data-i18n="about_u_451">— New Domain Fronting tab: fully client-side fronting with a curated host→front rule map, DoH resolution (so the censor's poisoned DNS is bypassed) with switchable presets (Cloudflare / Google / Quad9), Set/Clear system proxy, direct pass-through for unmatched hosts, and live request/error logging in the console; downloadable CA (.pem/.crt).</span></li>
           <li><b>v4.4.5</b> <span data-i18n="about_u_445">— Brand-new UI: cleaner fonts, a calmer flat design, and fully fluid layout that fits every monitor from phones to ultra-wide; light & dark themes; readable sans-serif labels and buttons; Google Tunnel (Fastly) with front presets and a .crt certificate for one-click Windows install; Set / Clear system proxy from the header.</span></li>
           <li><b>v4.1</b> <span data-i18n="about_u_41">— sing-box system-wide TUN mode; Start/Stop + TUN toggle in the header bar; Site Scanner rebuilt with live progress, cards and Connect/Save; Saved SNI list; every scanner now uses cards + progress bars; config-library right-click menu, shift-select and bulk relay/speed tests; Load SNI Configs; auto-save everything; mobile layout; Edge Tunnel removed.</span></li>
@@ -1122,9 +1268,13 @@ const $ = id => document.getElementById(id);
 /* ===================== i18n ===================== */
 const I18N = {
   en:{
-    hdr_edition:"By MacanDev · @EzAccess1", hdr_proxy:"SNI Tunnel", hdr_splus:"SPlus", hdr_xray:"xray", badge_new:"NEW",
+    hdr_edition:"By MacanDev · @EzAccess1", hdr_proxy:"SNI Tunnel", hdr_mitm:"MITM", hdr_tor:"Tor", hdr_xray:"xray", badge_new:"NEW",
+    nav_update:"Update", upd_h1:"App Update", upd_sub:"Check for a newer version of V2RayEz and download it. Updates are fetched over raw.githubusercontent.com, which works where api.github.com is blocked.", upd_current:"Current version", upd_mirror:"GitHub mirror (optional, if blocked)", upd_check:"Check for updates", upd_download:"Download update", upd_avail:"is available.", upd_latest:"You're on the latest version.", upd_done:"Close V2RayEz and replace the old executable with this file.", about_u_452:"— App Update tab (check & download new versions without api.github.com); full-archive extract for sing-box/tun2socks; all config files in one configs/ folder; Tor transports incl. conjure with captcha bridge requests; download progress bar.",
+    nav_donation:"Donation", don_h1:"Support V2RayEz", don_sub:"V2RayEz is free and open. If it helps you stay connected, a donation keeps development and servers alive. Thank you for your support!", don_thanks:"Every contribution, big or small, is deeply appreciated. ❤️", c_download_wd:"Download WinDivert", about_youtube:"YouTube tutorial", about_u_461:"— Donation tab with QR codes; WinDivert one-click download; collapsible sidebar sections; updates read the official GitHub releases without api.github.com; GitHub & YouTube links.", about_u_465:"— Config table shows 10 rows then scrolls; Auto-get bridges rotates through obfs4 & WebTunnel pools; whole-system Tor (TUN) routing fixed; WinDivert.dll loads from the windivert folder; config files consolidated.",
     sec_tunnels:"Tunnels", sec_scanners:"Scanners", sec_tools:"Tools", sec_library:"Library",
     nav_configs:"Configs", nav_edge:"Edge Tunnel", nav_sites:"Site Scanner", nav_cfworker:"CF Worker", nav_gtun:"Google Tunnel", nav_mitmdf:"Domain Fronting",
+    nav_tor:"Tor Network", tor_h1:"Tor Network", c_tor_getbridges:"Auto-get bridges", c_tor_snowflake:"Get Snowflake bridge", c_tor_captcha:"Request bridges (captcha)", tor_captcha_h:"Solve the captcha to get fresh bridges from Tor's BridgeDB.", tor_captcha_ph:"Type the characters you see", tor_captcha_wrong:"Wrong captcha — try again", c_tor_download:"Download Tor + dependencies", tor_sub:"Connect through the Tor network with optional pluggable transports for censored networks, and route the whole system through it with TUN. Needs the Tor Expert Bundle (the tor binary plus transport binaries like lyrebird/obfs4proxy and snowflake-client).", tor_step1:"① Transport & bridges", tor_step2:"② Connect", f_tor_transport:"Pluggable transport", opt_tor_none:"None (direct Tor)", f_tor_socks:"Local SOCKS port", tor_bridges_h:"Paste bridge lines (one per line) for the selected transport — get them from bridges.torproject.org or the Tor Browser. Not needed for None.", f_tor_bin:"tor binary path (blank = auto-detect)", f_tor_pt:"Transport binary path (blank = auto)", f_tor_tun:"Route the whole system through Tor (TUN — needs admin & tun2socks)", tor_warn:"Once connected, set your browser/app SOCKS5 proxy to 127.0.0.1 and the port above, or enable TUN to route everything. Pluggable transports require their binaries from the Tor Expert Bundle.",
+
     mdf_h1:"Domain Fronting", mdf_sub:"Fully client-side domain fronting — no server, no relay. A local proxy decrypts your own HTTPS using a CA you install once, reads the real Host, then reconnects to that site's CDN edge showing an allowed front domain (e.g. www.google.com) to the network while carrying the real Host inside. The censor only sees ordinary traffic to the front.",
     mdf_flow_t:"How it works", mdf_n_browser:"Browser", mdf_n_proxy:"V2RayEz MITM", mdf_n_cdn:"CDN edge (real Host inside)", mdf_n_site:"Real site",
     mdf_step1:"① Front rules (host → front domain)", mdf_rules_h:"One rule per line: host-suffix = front-SNI, or host-suffix = front-SNI = dial-host to also redirect the TCP connection (needed for Fastly). With no dial-host it connects to the real site's IP and only swaps the TLS SNI. Edit freely; leave it as-is for the built-in set.",
@@ -1162,9 +1312,9 @@ const I18N = {
     cfgm_h1:"Config Library", cfgm_sub:"Organize your configs into groups, import subscriptions, drag-and-drop links, then test, share (QR / copy), and connect. Ctrl/⌘-click to multi-select; press Enter to connect the selected one. Everything is saved automatically.",
     cfgm_add_t:"Add configs", cfgm_list_t:"Configs", cfgm_in_group:"in group", cfgm_empty:"No configs yet — paste, import a subscription, or drag links here.",
     cfgm_group_name:"Group name:", cfgm_del_confirm:"Delete this group and its configs?",
-    c_add_group:"+ Group", c_rename_group:"Rename", c_del_group:"Delete group", c_add_to_group:"Add to group",
-    c_import_sub:"Import subscription", c_test_group:"Ping test group", c_copy_group:"Copy group",
-    c_edit:"Edit", c_delete:"Delete", c_close:"Close",
+    c_add_group:"+ Group", c_rename_group:"Rename", c_del_group:"Delete group", c_import_folder:"Import from folder", c_add_to_group:"Add to group",
+    c_import_sub:"Import subscription", c_test_group:"Ping test group", th_name:"Name", th_relay:"Relay", th_tcp:"TCP ping", th_speed:"Speedtest", c_ping_group:"Ping Test Group", c_relay_group:"Relay Test Group", c_speed_group:"SpeedTest Group", c_sort_relay:"Sort by Relay", c_stop_test:"Stop test", cfgm_table_hint:"Click to select · Ctrl/⌘ or Shift for multi-select · double-click to connect · right-click for more · Delete removes selected · Esc stops a running test.", c_copy_group:"Copy group",
+    c_edit:"Edit", c_delete:"Delete", c_close:"Close", c_ok:"OK",
     edge_h1:"Edge Tunnel", edge_sub:"Build VLESS-over-WebSocket client configs for a Cloudflare Worker / Pages edgetunnel deployment (cmliu/edgetunnel). Deploy the worker with your UUID, then generate ready-to-use configs here — point them at a clean Cloudflare IP while keeping your worker domain as SNI/Host.",
     edge_gen_t:"Generate configs", edge_deploy_t:"How to deploy",
     f_edge_host:"Worker / Pages domain (SNI & Host)", f_edge_uuid:"UUID", f_edge_addr:"Dial address (clean CF IP / domain — optional)",
@@ -1221,7 +1371,7 @@ const I18N = {
     xray_cfg:"Test setup", f_uri:"Share link (vless / vmess)", f_proxy_host:"Local proxy host", f_proxy_port:"Local proxy port",
     f_socks_in:"Xray SOCKS port", f_test_url:"Test URL", f_timeout:"Timeout (s)",
     xray_note:"Tip: first start the SNI Tunnel proxy in PASSTHROUGH mode, with its listen port equal to the local proxy port here and its connect IP/port set to your real server. Xray routes through it, so the test reflects your spoofed-SNI path end to end. Heavy fragmentation delays can slow the handshake.",
-    xray_bin:"Xray binary", f_xray_path:"Path to xray / v2ray (leave empty to auto-detect)", c_detect:"Detect", c_download_xray:"Download xray",
+    xray_bin:"Xray binary", f_xray_path:"Path to xray / v2ray (leave empty to auto-detect)", f_gh_mirror:"GitHub download mirror (optional — use if GitHub downloads are blocked, e.g. https://gh-proxy.com/)", c_detect:"Detect", c_download_xray:"Download xray",
     x_notfound:"not found", x_downloading:"downloading…", f_direct:"Direct — connect straight to the config server (uncheck to route through the local SNI proxy)",
     xray_mass:"Mass URI check", xray_mass_h:"Paste many configs — vless / vmess / trojan / shadowsocks, one per line. Each is run through xray and a real request is made to the test host; ping (to the server) and relay delay (through the tunnel) are ranked fastest first. Needs the xray binary set above.",
     f_test_host:"Test host / URL (e.g. https://instagram.com)", f_mass_tunnel:"Test through the SNI Tunnel (uses the local proxy host/port from Single test) — leave off to connect directly",
@@ -1230,7 +1380,7 @@ const I18N = {
     c_start:"Start", nav_massuri_x:"",
     f_singbox_path:"Path to sing-box (for TUN mode — leave empty to auto-detect)", c_detect_singbox:"Detect sing-box", c_download_singbox:"Download sing-box",
     xray_run_none:"No config connected yet — go to the Library and click ▶ Connect on a config. It will turn green and become the active config used here.",
-    xray_run_active:"Active config:", f_engine:"Engine", opt_xray_socks:"xray — local SOCKS5 proxy", opt_singbox_tun:"sing-box — system-wide TUN VPN",
+    xray_run_active:"Active config:", f_engine:"Engine", opt_xray_socks:"xray — local SOCKS5 proxy", opt_xray_tun:"xray + TUN (tun2socks — no sing-box)", opt_singbox_tun:"sing-box — system-wide TUN VPN", c_download_tun2socks:"Download tun2socks", c_psi_overmitm:"Start Psiphon over MITM", c_psi_download:"Download Psiphon", c_psi_open:"Open Psiphon", c_psi_starting_mitm:"starting MITM + Psiphon…", psi_ext_note:"MITM proxy is running. In your Psiphon app set Upstream Proxy (HTTP) to:",
     f_tun_mode:"TUN mode — route ALL device traffic through the config (needs administrator / root)",
     xray_tun_warn:"TUN mode uses sing-box to create a virtual network adapter and reroute your system. You must run V2RayEz as administrator (Windows) or with sudo (macOS/Linux). On Windows, sing-box fetches Wintun automatically on first run.",
     xr_tun_on:"TUN active — all device traffic is routed through the config (sing-box v2rayez-tun)",
@@ -1238,7 +1388,7 @@ const I18N = {
     c_select_all:"Select all", cfgm_latest_grp:"Latest",
     c_save:"Save", c_relay:"Relay", r_ping:"ping",
     c_speedtest:"Speed test", c_share:"Share / QR", c_load_sni:"Load SNI Configs", cfgm_sni_grp:"SNI Spoof", c_copy_uuid:"Copy UUID",
-    cfgm_edit_t:"Edit config", ed_name:"Name", ed_address:"Address (host / IP)", ed_port:"Port", ed_uuid:"UUID", ed_password:"Password",
+    cfgm_edit_t:"Edit config", ed_allowinsecure:"Allow insecure (skip TLS certificate check). Default OFF — only enable for self-signed servers.", ed_name:"Name", ed_address:"Address (host / IP)", ed_port:"Port", ed_uuid:"UUID", ed_password:"Password",
     ed_method:"Cipher (method)", ed_encryption:"Encryption", ed_flow:"Flow", ed_network:"Network (transport)", ed_path:"Path / service",
     ed_hosthdr:"Host header", ed_security:"Security", ed_sni:"SNI", ed_fp:"uTLS fingerprint", ed_alpn:"ALPN",
     ed_unparsed:"This link couldn't be parsed into fields — edit the raw URI directly.",
@@ -1284,7 +1434,7 @@ const I18N = {
     cc_waiting:"waiting for the first results…", cc_phase1:"Phase 1 — ping", cc_phase2:"Phase 2 — speed",
     cc_done:"done", cc_stopped:"stopped",
     cc_save_t:"Savebox — best configs", cc_save_h:"After the scan, the top configs (rewritten to point at the best edge IPs) appear here, ranked by download throughput. Copy them into your client.",
-    c_copy:"Copy", cc_copied:"copied!", cc_empty:"savebox is empty",
+    c_copy:"Copy", c_paste:"Paste (Ctrl+V)", cc_copied:"copied!", cc_pasted:"pasted", cc_paste_denied:"clipboard blocked — allow clipboard access", cc_no_configs:"no configs found in clipboard", cc_empty:"savebox is empty",
     uri_h1:"URI Parser", uri_sub:"Decode vless:// and vmess:// share links into their host, port, UUID, SNI, transport and TLS fields — then send them straight to the SNI Tunnel.",
     uri_link:"Share link",
     wd_h1:"WinDivert Driver", wd_sub:"Install, start, or remove the WinDivert kernel driver used for system-wide packet interception. Windows only, and requires Administrator rights.",
@@ -1315,9 +1465,13 @@ const I18N = {
     wd_supported:"supported", wd_admin:"admin", wd_running:"running", wd_installed:"installed", yes:"yes", no:"no",
   },
   fa:{
-    hdr_edition:"ساختهٔ MacanDev · @EzAccess1", hdr_proxy:"تونل SNI", hdr_splus:"SPlus", hdr_xray:"xray", badge_new:"جدید",
+    hdr_edition:"ساختهٔ MacanDev · @EzAccess1", hdr_proxy:"تونل SNI", hdr_mitm:"MITM", hdr_tor:"تور", hdr_xray:"xray", badge_new:"جدید",
+    nav_update:"به‌روزرسانی", upd_h1:"به‌روزرسانی برنامه", upd_sub:"نسخهٔ جدید V2RayEz را بررسی و دانلود کنید. به‌روزرسانی‌ها از raw.githubusercontent.com گرفته می‌شوند که در جایی که api.github.com مسدود است کار می‌کند.", upd_current:"نسخهٔ فعلی", upd_mirror:"آینهٔ گیت‌هاب (اختیاری، اگر مسدود است)", upd_check:"بررسی به‌روزرسانی", upd_download:"دانلود به‌روزرسانی", upd_avail:"در دسترس است.", upd_latest:"شما روی آخرین نسخه هستید.", upd_done:"V2RayEz را ببندید و فایل اجرایی قدیمی را با این فایل جایگزین کنید.", about_u_452:"— تب به‌روزرسانی برنامه (بررسی و دانلود نسخهٔ جدید بدون api.github.com)؛ استخراج کامل آرشیو برای sing-box/tun2socks؛ ذخیرهٔ همهٔ فایل‌های کانفیگ در یک پوشهٔ configs؛ ترنسپورت‌های Tor شامل conjure با درخواست بریج کپچا؛ نوار پیشرفت دانلود.",
+    nav_donation:"حمایت مالی", don_h1:"از V2RayEz حمایت کنید", don_sub:"V2RayEz رایگان و آزاد است. اگر برایتان مفید بوده، حمایت شما توسعه و سرورها را زنده نگه می‌دارد. ممنون از حمایت‌تان!", don_thanks:"هر کمکی، کوچک یا بزرگ، بسیار قدردانی می‌شود. ❤️", c_download_wd:"دانلود WinDivert", about_youtube:"آموزش یوتیوب", about_u_461:"— تب حمایت مالی با کدهای QR؛ دانلود یک‌کلیک WinDivert؛ بخش‌های جمع‌شوندهٔ نوار کناری؛ به‌روزرسانی از ریلیزهای رسمی گیت‌هاب بدون api.github.com؛ لینک گیت‌هاب و یوتیوب.", about_u_465:"— جدول کانفیگ ۱۰ ردیف نشان می‌دهد و بقیه با اسکرول؛ دریافت خودکار بریج بین obfs4 و WebTunnel چرخش می‌کند؛ مسیردهی کل سیستم از طریق Tor (TUN) رفع شد؛ WinDivert.dll از پوشهٔ windivert بارگذاری می‌شود؛ فایل‌های کانفیگ یکپارچه شدند.",
     sec_tunnels:"تونل‌ها", sec_scanners:"اسکنرها", sec_tools:"ابزارها", sec_library:"کتابخانه",
     nav_configs:"کانفیگ‌ها", nav_edge:"اِج تونل", nav_sites:"اسکنر سایت", nav_cfworker:"ورکر CF", nav_gtun:"تونل گوگل", nav_mitmdf:"دامین‌فرانتینگ",
+    nav_tor:"شبکهٔ Tor", tor_h1:"شبکهٔ Tor", c_tor_getbridges:"دریافت خودکار بریج‌ها", c_tor_snowflake:"دریافت بریج Snowflake", c_tor_captcha:"درخواست بریج (کپچا)", tor_captcha_h:"برای گرفتن بریج‌های تازه از BridgeDB، کپچا را حل کنید.", tor_captcha_ph:"کاراکترهایی که می‌بینید را بنویسید", tor_captcha_wrong:"کپچا اشتباه است — دوباره تلاش کنید", c_tor_download:"دانلود Tor و وابستگی‌ها", tor_sub:"از طریق شبکهٔ Tor با ترنسپورت‌های قابل‌اتصال (برای شبکه‌های سانسورشده) وصل شوید و با TUN کل سیستم را از آن عبور دهید. به Tor Expert Bundle نیاز دارد (باینری tor به‌علاوهٔ باینری ترنسپورت‌ها مثل lyrebird/obfs4proxy و snowflake-client).", tor_step1:"① ترنسپورت و بریج‌ها", tor_step2:"② اتصال", f_tor_transport:"ترنسپورت قابل‌اتصال", opt_tor_none:"هیچ‌کدام (Tor مستقیم)", f_tor_socks:"پورت SOCKS محلی", tor_bridges_h:"خطوط بریج (هر کدام در یک خط) برای ترنسپورت انتخاب‌شده را بچسبانید — از bridges.torproject.org یا مرورگر Tor بگیرید. برای «هیچ‌کدام» لازم نیست.", f_tor_bin:"مسیر باینری tor (خالی = یافتن خودکار)", f_tor_pt:"مسیر باینری ترنسپورت (خالی = خودکار)", f_tor_tun:"عبور کل سیستم از Tor (TUN — نیازمند ادمین و tun2socks)", tor_warn:"پس از اتصال، پروکسی SOCKS5 مرورگر/اپ را روی 127.0.0.1 و پورت بالا بگذارید، یا TUN را روشن کنید تا همه‌چیز عبور کند. ترنسپورت‌های قابل‌اتصال به باینری‌های Tor Expert Bundle نیاز دارند.",
+
     mdf_h1:"دامین‌فرانتینگ", mdf_sub:"دامین‌فرانتینگ کاملاً سمت کلاینت — بدون سرور و بدون رله. یک پروکسی محلی با گواهی‌ای که یک‌بار نصب می‌کنید HTTPS خودتان را باز می‌کند، Host واقعی را می‌خواند، سپس به اِج CDN همان سایت وصل می‌شود و یک دامنهٔ فرانت مجاز (مثل www.google.com) را به شبکه نشان می‌دهد در حالی که Host واقعی داخل آن است. سانسورچی فقط ترافیک عادی به فرانت را می‌بیند.",
     mdf_flow_t:"چطور کار می‌کند", mdf_n_browser:"مرورگر", mdf_n_proxy:"MITM وی‌تو‌ری‌ایزی", mdf_n_cdn:"اِج CDN (Host واقعی داخل)", mdf_n_site:"سایت واقعی",
     mdf_step1:"① قواعد فرانت (هاست → دامنهٔ فرانت)", mdf_rules_h:"هر قاعده در یک خط: پسوند-هاست = SNI-فرانت یا پسوند-هاست = SNI-فرانت = هاست-اتصال (برای ریدایرکت کردن اتصال TCP؛ برای Fastly لازم است). بدون هاست-اتصال، به IP واقعی سایت وصل می‌شود و فقط SNI را عوض می‌کند. آزادانه ویرایش کنید؛ برای مجموعهٔ پیش‌فرض دست نزنید.",
@@ -1355,9 +1509,9 @@ const I18N = {
     cfgm_h1:"کتابخانهٔ کانفیگ", cfgm_sub:"کانفیگ‌ها را گروه‌بندی کنید، اشتراک وارد کنید، لینک‌ها را بکشید و رها کنید، سپس تست، اشتراک‌گذاری (QR/کپی) و اتصال کنید. با Ctrl/⌘ چندتایی انتخاب کنید؛ با Enter به انتخاب‌شده وصل شوید. همه‌چیز خودکار ذخیره می‌شود.",
     cfgm_add_t:"افزودن کانفیگ", cfgm_list_t:"کانفیگ‌ها", cfgm_in_group:"در گروه", cfgm_empty:"هنوز کانفیگی نیست — بچسبانید، اشتراک وارد کنید یا لینک‌ها را اینجا رها کنید.",
     cfgm_group_name:"نام گروه:", cfgm_del_confirm:"این گروه و کانفیگ‌هایش حذف شوند؟",
-    c_add_group:"+ گروه", c_rename_group:"تغییر نام", c_del_group:"حذف گروه", c_add_to_group:"افزودن به گروه",
-    c_import_sub:"وارد کردن اشتراک", c_test_group:"تست پینگ گروه", c_copy_group:"کپی گروه",
-    c_edit:"ویرایش", c_delete:"حذف", c_close:"بستن",
+    c_add_group:"+ گروه", c_rename_group:"تغییر نام", c_del_group:"حذف گروه", c_import_folder:"وارد کردن از پوشه", c_add_to_group:"افزودن به گروه",
+    c_import_sub:"وارد کردن اشتراک", c_test_group:"تست پینگ گروه", th_name:"نام", th_relay:"رله", th_tcp:"پینگ TCP", th_speed:"تست سرعت", c_ping_group:"تست پینگ گروه", c_relay_group:"تست رله گروه", c_speed_group:"تست سرعت گروه", c_sort_relay:"مرتب‌سازی بر اساس رله", c_stop_test:"توقف تست", cfgm_table_hint:"کلیک=انتخاب · Ctrl/⌘ یا Shift=چندتایی · دوبار کلیک=اتصال · راست‌کلیک=بیشتر · Delete=حذف · Esc=توقف تست.", c_copy_group:"کپی گروه",
+    c_edit:"ویرایش", c_delete:"حذف", c_close:"بستن", c_ok:"تأیید",
     edge_h1:"اِج تونل", edge_sub:"برای یک دیپلوی edgetunnel روی Cloudflare Worker/Pages (cmliu/edgetunnel) کانفیگ کلاینت VLESS-over-WebSocket بسازید. ورکر را با UUID خود دیپلوی کنید، سپس کانفیگ آمادهٔ استفاده اینجا بسازید — آن‌ها را به یک IP تمیز کلودفلر اشاره دهید و دامنهٔ ورکر را به‌عنوان SNI/Host نگه دارید.",
     edge_gen_t:"ساخت کانفیگ", edge_deploy_t:"نحوهٔ دیپلوی",
     f_edge_host:"دامنهٔ Worker/Pages (SNI و Host)", f_edge_uuid:"UUID", f_edge_addr:"آدرس اتصال (IP/دامنهٔ تمیز CF — اختیاری)",
@@ -1414,7 +1568,7 @@ const I18N = {
     xray_cfg:"تنظیمات تست", f_uri:"لینک اشتراک (vless / vmess)", f_proxy_host:"هاست پروکسی محلی", f_proxy_port:"پورت پروکسی محلی",
     f_socks_in:"پورت SOCKS اکس‌ری", f_test_url:"آدرس تست", f_timeout:"مهلت (ثانیه)",
     xray_note:"نکته: ابتدا پروکسی تونل SNI را در حالت عبوری (PASSTHROUGH) اجرا کنید؛ پورت شنوندهٔ آن را برابر پورت پروکسی محلی اینجا و IP/پورت مقصدش را روی سرور واقعی‌تان بگذارید. اکس‌ری از آن عبور می‌کند تا تست، مسیر جعل SNI شما را کامل بازتاب دهد. تأخیر زیادِ تکه‌تکه‌سازی می‌تواند دست‌دهی را کند کند.",
-    xray_bin:"فایل اجرایی Xray", f_xray_path:"مسیر xray / v2ray (خالی = تشخیص خودکار)", c_detect:"تشخیص", c_download_xray:"دانلود xray",
+    xray_bin:"فایل اجرایی Xray", f_xray_path:"مسیر xray / v2ray (خالی = تشخیص خودکار)", f_gh_mirror:"آینهٔ دانلود گیت‌هاب (اختیاری — اگر دانلود گیت‌هاب مسدود است، مثل https://gh-proxy.com/)", c_detect:"تشخیص", c_download_xray:"دانلود xray",
     x_notfound:"یافت نشد", x_downloading:"در حال دانلود…", f_direct:"مستقیم — اتصال مستقیم به سرور کانفیگ (برای عبور از پروکسی SNI محلی تیک را بردارید)",
     xray_mass:"بررسی گروهی URI", xray_mass_h:"چندین کانفیگ — vless / vmess / trojan / shadowsocks، هر خط یکی. هرکدام از طریق xray اجرا شده و یک درخواست واقعی به هاست تست زده می‌شود؛ پینگ (تا سرور) و تأخیر رله (از تونل) با ترتیب سریع‌ترین اول. به فایل اجرایی xray بالا نیاز دارد.",
     f_test_host:"هاست/آدرس تست (مثلاً https://instagram.com)", f_mass_tunnel:"تست از طریق تونل SNI (از هاست/پورت پروکسی محلیِ «تست تکی» استفاده می‌کند) — برای اتصال مستقیم خاموش بگذارید",
@@ -1423,7 +1577,7 @@ const I18N = {
     c_start:"شروع", nav_massuri_x:"",
     f_singbox_path:"مسیر sing-box (برای حالت TUN — خالی بگذارید تا خودکار پیدا شود)", c_detect_singbox:"یافتن sing-box", c_download_singbox:"دانلود sing-box",
     xray_run_none:"هنوز کانفیگی متصل نشده — به کتابخانه بروید و روی ▶ یک کانفیگ بزنید. سبز می‌شود و کانفیگ فعال اینجا خواهد بود.",
-    xray_run_active:"کانفیگ فعال:", f_engine:"موتور", opt_xray_socks:"xray — پروکسی SOCKS5 محلی", opt_singbox_tun:"sing-box — VPN سراسری TUN",
+    xray_run_active:"کانفیگ فعال:", f_engine:"موتور", opt_xray_socks:"xray — پروکسی SOCKS5 محلی", opt_xray_tun:"xray + TUN (tun2socks — بدون sing-box)", opt_singbox_tun:"sing-box — VPN سراسری TUN", c_download_tun2socks:"دانلود tun2socks", c_psi_overmitm:"اجرای Psiphon روی MITM", c_psi_download:"دانلود Psiphon", c_psi_open:"باز کردن Psiphon", c_psi_starting_mitm:"در حال شروع MITM و Psiphon…", psi_ext_note:"پروکسی MITM فعال است. در اپ Psiphon آدرس Upstream Proxy (HTTP) را روی این بگذارید:",
     f_tun_mode:"حالت TUN — همهٔ ترافیک دستگاه از کانفیگ عبور کند (نیاز به ادمین/روت)",
     xray_tun_warn:"حالت TUN با sing-box یک آداپتور شبکهٔ مجازی می‌سازد و سیستم را بازمسیردهی می‌کند. باید V2RayEz را به‌عنوان ادمین (ویندوز) یا با sudo (مک/لینوکس) اجرا کنید. در ویندوز، sing-box در اولین اجرا Wintun را خودکار دانلود می‌کند.",
     xr_tun_on:"TUN فعال است — همهٔ ترافیک دستگاه از کانفیگ عبور می‌کند (sing-box v2rayez-tun)",
@@ -1431,7 +1585,7 @@ const I18N = {
     c_select_all:"انتخاب همه", cfgm_latest_grp:"آخرین",
     c_save:"ذخیره", c_relay:"رله", r_ping:"پینگ",
     c_speedtest:"تست سرعت", c_share:"اشتراک / QR", c_load_sni:"بارگذاری کانفیگ‌های SNI", cfgm_sni_grp:"SNI اسپوف", c_copy_uuid:"کپی UUID",
-    cfgm_edit_t:"ویرایش کانفیگ", ed_name:"نام", ed_address:"آدرس (هاست / IP)", ed_port:"پورت", ed_uuid:"UUID", ed_password:"رمز عبور",
+    cfgm_edit_t:"ویرایش کانفیگ", ed_allowinsecure:"اجازهٔ ناامن (رد کردن بررسی گواهی TLS). پیش‌فرض خاموش — فقط برای سرورهای self-signed روشن کنید.", ed_name:"نام", ed_address:"آدرس (هاست / IP)", ed_port:"پورت", ed_uuid:"UUID", ed_password:"رمز عبور",
     ed_method:"رمزنگاری (method)", ed_encryption:"رمزنگاری", ed_flow:"Flow", ed_network:"شبکه (ترنسپورت)", ed_path:"مسیر / سرویس",
     ed_hosthdr:"هدر Host", ed_security:"امنیت", ed_sni:"SNI", ed_fp:"اثرانگشت uTLS", ed_alpn:"ALPN",
     ed_unparsed:"این لینک به فیلدها تجزیه نشد — URI خام را مستقیم ویرایش کنید.",
@@ -1477,7 +1631,7 @@ const I18N = {
     cc_waiting:"در انتظار اولین نتیجه‌ها…", cc_phase1:"فاز ۱ — پینگ", cc_phase2:"فاز ۲ — سرعت",
     cc_done:"تمام", cc_stopped:"متوقف شد",
     cc_save_t:"سیوباکس — بهترین کانفیگ‌ها", cc_save_h:"بعد از اسکن، کانفیگ‌های برتر (با IP اِج‌های جایگزین‌شده) اینجا ظاهر می‌شوند، مرتب بر اساس دانلود. کپی‌شان کنید و در کلاینت‌تان استفاده کنید.",
-    c_copy:"کپی", cc_copied:"کپی شد!", cc_empty:"سیوباکس خالی است",
+    c_copy:"کپی", c_paste:"چسباندن (Ctrl+V)", cc_copied:"کپی شد!", cc_pasted:"چسبانده شد", cc_paste_denied:"دسترسی کلیپ‌بورد مسدود است — اجازه دهید", cc_no_configs:"کانفیگی در کلیپ‌بورد پیدا نشد", cc_empty:"سیوباکس خالی است",
     uri_h1:"تجزیه‌گر URI", uri_sub:"لینک‌های vless:// و vmess:// را به هاست، پورت، UUID، SNI، انتقال و TLS تجزیه کنید — سپس مستقیماً به تونل SNI بفرستید.",
     uri_link:"لینک اشتراک",
     wd_h1:"درایور WinDivert", wd_sub:"نصب، راه‌اندازی یا حذف درایور هسته‌ای WinDivert برای رهگیری بسته در سطح سیستم. فقط ویندوز و نیازمند دسترسی مدیر.",
@@ -1528,26 +1682,29 @@ const NAV_SECTIONS = [
   {label:"sec_library", items:[
     {id:"configs",   ic:"\u2637"},
     {id:"xray",      ic:"\u2699"},
+    {id:"windivert", ic:"\u229E"},
   ]},
   {label:"sec_tunnels", items:[
     {id:"proxy",   ic:"\u224B"},
-    {id:"gtun",    ic:"\u25C8", tag:"new"},
-    {id:"mitmdf",  ic:"\u25C9", tag:"new"},
-    {id:"splus",   ic:"\u21C4", tag:"new"},
-    {id:"psiphon", ic:"\u24C5", tag:"new"},
+    {id:"gtun",    ic:"\u25C8"},
+    {id:"mitmdf",  ic:"\u25C9"},
+    {id:"splus",   ic:"\u21C4"},
+    {id:"psiphon", ic:"\u24C5"},
+    {id:"tor",     ic:"\u2740"},
   ]},
-  {label:"sec_scanners", items:[
+  {label:"sec_scanners", collapsed:true, items:[
     {id:"sniscan",   ic:"\u25CE"},
-    {id:"massuri",   ic:"\u2263", tag:"new"},
+    {id:"massuri",   ic:"\u2263"},
     {id:"mass",      ic:"\u22EE"},
     {id:"cf",        ic:"\u229E"},
-    {id:"sites",     ic:"\u2318", tag:"new"},
-    {id:"cdnedge",   ic:"\u26A1", tag:"new"},
-    {id:"cdnconfigs",ic:"\u2730", tag:"new"},
+    {id:"sites",     ic:"\u2318"},
+    {id:"cdnedge",   ic:"\u26A1"},
+    {id:"cdnconfigs",ic:"\u2730"},
   ]},
   {label:"sec_tools", items:[
-    {id:"cfworker",  ic:"\u2601", tag:"new"},
-    {id:"windivert", ic:"\u229E"},
+    {id:"cfworker",  ic:"\u2601"},
+    {id:"update",    ic:"\u21BB"},
+    {id:"donation",  ic:"\u2665", tag:"new"},
     {id:"about",     ic:"\u24D8"},
   ]},
 ];
@@ -1555,16 +1712,21 @@ const TABS = NAV_SECTIONS.flatMap(s=>s.items);
 const rail = $("rail");
 NAV_SECTIONS.forEach(sec=>{
   const h = document.createElement("div");
-  h.className = "navsec";
-  h.setAttribute("data-i18n", sec.label);
-  rail.appendChild(h);
+  h.className = "navsec"+(sec.collapsed?" collapsed":"");
+  h.innerHTML = '<span data-i18n="'+sec.label+'"></span><span class="navsec-caret">\u25BE</span>';
+  const wrap = document.createElement("div");
+  wrap.className = "navsec-items";
+  if(sec.collapsed) wrap.style.display="none";
   sec.items.forEach(tb=>{
     const b=document.createElement("button");
     b.className="navbtn"; b.dataset.tab=tb.id;
     b.innerHTML='<span class="ic">'+tb.ic+'</span><span class="nlabel"></span>'+(tb.tag?'<span class="tag" data-i18n="badge_new"></span>':'');
     b.onclick=()=>selectTab(tb.id);
-    rail.appendChild(b);
+    wrap.appendChild(b);
   });
+  h.onclick=()=>{ const c=h.classList.toggle("collapsed"); wrap.style.display=c?"none":""; };
+  rail.appendChild(h);
+  rail.appendChild(wrap);
 });
 // Activate the first item on first paint.
 const firstBtn = document.querySelector(".navbtn"); if(firstBtn) firstBtn.classList.add("active");
@@ -1585,6 +1747,9 @@ function selectTab(id){
   if(id==="proxy"){ savedSNIRender(); }
   if(id==="gtun"){ api("/api/gtun/status",{}).then(s=>gtUI(!!(s&&s.running),s)); }
   if(id==="mitmdf"){ mdfLoadDefaults(false); api("/api/mitmdf/status",{}).then(s=>mdfUI(!!(s&&s.running),s)); }
+  if(id==="tor"){ api("/api/tor/status",{}).then(s=>torUI(!!(s&&s.running),s)); }
+  if(id==="update"){ updRefresh(); }
+  if(id==="donation"){ donRender(); }
   // On mobile, collapse the nav dropdown after a tab is chosen.
   const rail=$("rail"); if(rail) rail.classList.remove("navopen");
 }
@@ -1707,8 +1872,11 @@ connectSSE();
 /* ===================== status poll ===================== */
 async function poll(){
   const p=await api("/api/proxy/status"); state.proxy=!!p.running; setHead("Proxy", state.proxy); proxyUI(state.proxy);
-  const s=await api("/api/splus/status"); state.splus=!!s.running; setHead("Splus", state.splus);
-  if(s.running){ $("s_rx").textContent=fmtBytes(s.rx); $("s_tx").textContent=fmtBytes(s.tx); $("s_roleview").textContent="role: "+(s.role||""); }
+  // keep SPlus stats updating (tab still exists) without a header dot
+  const s=await api("/api/splus/status"); state.splus=!!s.running;
+  if(s.running){ if($("s_rx")) $("s_rx").textContent=fmtBytes(s.rx); if($("s_tx")) $("s_tx").textContent=fmtBytes(s.tx); if($("s_roleview")) $("s_roleview").textContent="role: "+(s.role||""); }
+  const m=await api("/api/mitmdf/status",{}); setHead("Mitm", !!(m&&m.running));
+  const tr=await api("/api/tor/status",{}); setHead("Tor", !!(tr&&tr.running));
 }
 function setHead(name,on){ $("dot"+name).classList.toggle("on",!!on); $("s"+name).textContent=on?"on":"off"; }
 setInterval(poll,2000); poll();
@@ -1792,10 +1960,13 @@ $("x_detect").onclick=async()=>{
   if(r.found){ $("x_bin").value=r.path; $("x_binmeta").innerHTML='<span class="ok">'+esc(r.path)+'</span>'; }
   else $("x_binmeta").innerHTML='<span class="bad">'+esc(t("x_notfound"))+'</span>';
 };
+let dlCount=0;
+function dlStart(btnId){ dlCount++; const b=$("dlbar"); if(b) b.classList.add("on"); const el=btnId&&$(btnId); if(el){ el.disabled=true; if(!el.dataset._t){ el.dataset._t=el.textContent; } el.textContent="⏳ "+el.dataset._t; } }
+function dlEnd(btnId){ dlCount=Math.max(0,dlCount-1); if(dlCount===0){ const b=$("dlbar"); if(b) b.classList.remove("on"); } const el=btnId&&$(btnId); if(el){ el.disabled=false; if(el.dataset._t){ el.textContent=el.dataset._t; delete el.dataset._t; } } }
 $("x_download").onclick=async()=>{
-  $("x_download").disabled=true; $("x_binmeta").textContent=t("x_downloading");
-  const r=await api("/api/xray/download",{});
-  $("x_download").disabled=false;
+  dlStart("x_download"); $("x_binmeta").textContent=t("x_downloading");
+  const r=await api("/api/xray/download",{mirror:($("dl_mirror").value||"").trim()});
+  dlEnd("x_download");
   if(r.ok){ $("x_bin").value=r.path; $("x_binmeta").innerHTML='<span class="ok">✓ '+esc(r.path)+'</span>'; }
   else $("x_binmeta").innerHTML='<span class="bad">'+esc(r.error||"failed")+'</span>';
 };
@@ -1873,6 +2044,10 @@ async function xrStartEngine(){
     r=await api("/api/singbox/start",{uri:xrActiveURI,bin_path:$("sb_bin").value.trim(),tun:$("xr_tun").checked,socks_port:num($("xr_sp").value)});
   } else {
     r=await api("/api/xray/start",{uri:xrActiveURI,bin_path:$("x_bin").value.trim(),socks_port:num($("xr_sp").value),listen_host:$("xr_lh").value.trim(),direct:true});
+    if(engine==="xray-tun" && r && !r.error){
+      const t=await api("/api/tun2socks/start",{socks_host:$("xr_lh").value.trim()||"127.0.0.1",socks_port:num($("xr_sp").value)});
+      if(t&&t.error){ $("xr_out").innerHTML='<div class="result bad">tun2socks: '+esc(t.error)+'</div>'; }
+    }
   }
   if(r&&r.error){ $("xr_out").innerHTML='<div class="result bad">'+esc(r.error)+'</div>'; xrUI(false); return; }
   xrUI(true,r); refreshHdrXray();
@@ -1897,9 +2072,10 @@ function xrUI(running,st){
 $("xr_engine").onchange=xrEngineUI;
 $("xr_tun").onchange=()=>{ $("xr_tunwarn").style.display=$("xr_tun").checked?"":"none"; };
 $("xr_start").onclick=xrStartEngine;
-$("xr_stop").onclick=async()=>{ await api("/api/xray/stop"); await api("/api/singbox/stop"); xrUI(false); refreshHdrXray(); };
+$("xr_stop").onclick=async()=>{ await api("/api/xray/stop"); await api("/api/singbox/stop"); await api("/api/tun2socks/stop",{}); xrUI(false); refreshHdrXray(); };
+$("t2s_download").onclick=async()=>{ dlStart("t2s_download"); $("sb_binmeta").textContent=t("c_loading"); const r=await api("/api/tun2socks/download",{mirror:($("dl_mirror").value||"").trim()}); dlEnd("t2s_download"); $("sb_binmeta").innerHTML=(r&&r.ok)?'<span class="ok">✓ '+esc(r.path)+'</span>':'<span class="bad">'+esc((r&&r.error)||"failed")+'</span>'; };
 $("sb_detect").onclick=async()=>{ const r=await api("/api/singbox/find",{}); $("sb_binmeta").innerHTML=r.found?'<span class="ok">✓ '+esc(r.path)+'</span>':'<span class="bad">'+esc(t("x_notfound"))+'</span>'; };
-$("sb_download").onclick=async()=>{ $("sb_binmeta").textContent=t("c_loading"); const r=await api("/api/singbox/download",{}); $("sb_binmeta").innerHTML=(r&&r.ok)?'<span class="ok">✓ '+esc(r.path)+'</span>':'<span class="bad">'+esc((r&&r.error)||"failed")+'</span>'; };
+$("sb_download").onclick=async()=>{ dlStart("sb_download"); $("sb_binmeta").textContent=t("c_loading"); const r=await api("/api/singbox/download",{mirror:($("dl_mirror").value||"").trim()}); dlEnd("sb_download"); $("sb_binmeta").innerHTML=(r&&r.ok)?'<span class="ok">✓ '+esc(r.path)+'</span>':'<span class="bad">'+esc((r&&r.error)||"failed")+'</span>'; };
 
 /* ===================== cdn configs builder ===================== */
 const CF_HTTPS_PORTS = [443, 2053, 2083, 2087, 2096, 8443];
@@ -2212,15 +2388,49 @@ async function cfgmLoad(){
 function curGroup(){ return CFGM.groups.find(g=>g.id===CFGM.cur) || CFGM.groups[0]; }
 function uid(){ return "c"+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
 function nameOf(uri){
+  uri=(uri||"").trim();
+  if(uri.indexOf("vmess://")===0){
+    try{
+      let b=uri.slice(8).split("#")[0].replace(/-/g,"+").replace(/_/g,"/");
+      while(b.length%4) b+="=";
+      const j=JSON.parse(atob(b));
+      if(j){ if(j.ps) return String(j.ps); if(j.add) return j.add+(j.port?(":"+j.port):""); }
+    }catch(e){}
+  }
   const h = uri.indexOf("#");
   if(h>=0){ try{ return decodeURIComponent(uri.slice(h+1)); }catch(e){ return uri.slice(h+1); } }
+  try{ const u=new URL(uri); if(u.hostname) return u.hostname+(u.port?(":"+u.port):""); }catch(e){}
   return uri.slice(0,42)+"…";
 }
 function protoOf(uri){ const i=uri.indexOf("://"); return i>0?uri.slice(0,i):"?"; }
+// forceSecure strips allowInsecure from a link so configs are added with TLS
+// verification ON by default (some providers ship allowInsecure=1).
+function forceSecure(uri){
+  uri=(uri||"").trim();
+  if(uri.indexOf("vmess://")===0){
+    try{
+      let body=uri.slice(8), frag=""; const h=body.indexOf("#"); if(h>=0){ frag=body.slice(h); body=body.slice(0,h); }
+      const j=JSON.parse(b64d(body)); delete j.allowInsecure; delete j.verify_cert;
+      return "vmess://"+b64e(JSON.stringify(j))+frag;
+    }catch(e){ return uri; }
+  }
+  if(/^(vless|trojan):\/\//.test(uri)){
+    try{
+      const h=uri.indexOf("#"); const frag=h>=0?uri.slice(h):""; const base=h>=0?uri.slice(0,h):uri;
+      const q=base.indexOf("?"); if(q<0) return uri;
+      const head=base.slice(0,q); const qs=new URLSearchParams(base.slice(q+1));
+      qs.delete("allowInsecure"); qs.delete("allowinsecure");
+      const s=qs.toString();
+      return head+(s?("?"+s):"")+frag;
+    }catch(e){ return uri; }
+  }
+  return uri;
+}
 function cfgmAddLinks(links, _grp){
   const g = curGroup(); let added=0;
   const have = new Set(g.configs.map(c=>c.uri));
-  links.forEach(uri=>{ uri=uri.trim(); if(!uri||have.has(uri)) return; if(!/^(vless|vmess|trojan|ss):\/\//.test(uri)) return;
+  links.forEach(uri=>{ uri=(uri||"").trim(); if(!uri) return; if(!/^(vless|vmess|trojan|ss):\/\//.test(uri)) return;
+    uri=forceSecure(uri); if(have.has(uri)) return;
     g.configs.push({id:uid(), uri, name:nameOf(uri)}); have.add(uri); added++; });
   cfgmSave(); cfgmRender();
   return added;
@@ -2231,34 +2441,51 @@ function cfgmRenderGroups(){
   ).join("");
   document.querySelectorAll("#cfgm_groups .grouptab").forEach(el=>el.onclick=()=>{ CFGM.cur=el.dataset.g; cfgmSel.clear(); cfgmSave(); cfgmRender(); });
 }
+function pingCell(v){
+  if(v==null) return '<span class="muted">—</span>';
+  if(v<0) return '<span class="pred">✗</span>';
+  const cls = v<300?'pgreen':(v<800?'pamber':'pred');
+  return '<span class="'+cls+'">'+v+'<small>ms</small></span>';
+}
+function mbps(k){ return (Math.round(k/1000*10)/10); }
+function cfgmRowHTML(c,i){
+  const isActive=CFGM.active===c.uri, isSel=cfgmSel.has(c.id);
+  const relay=pingCell(c.ping);
+  const tcp=pingCell(c.tcp);
+  const speed=(c.down!=null&&c.down>0)
+    ? '<span class="spd">⬇'+mbps(c.down)+(c.up>0?(' ⬆'+mbps(c.up)):'')+' Mb/s</span>'
+    : '<span class="muted">—</span>';
+  return '<tr class="cfgr'+(isActive?' active':'')+(isSel?' sel':'')+'" data-id="'+c.id+'">'+
+    '<td class="num">'+(i+1)+'</td>'+
+    '<td class="nmcell"><span class="dotc"></span><span class="nm">'+esc(c.name)+'</span><small class="proto">'+esc(protoOf(c.uri))+'</small></td>'+
+    '<td>'+relay+'</td><td>'+tcp+'</td><td>'+speed+'</td></tr>';
+}
 function cfgmRender(){
   cfgmRenderGroups();
   const g = curGroup();
-  $("cfgm_count").textContent = g.configs.length + " " + t("cfgm_in_group");
-  if(g.configs.length===0){ $("cfgm_list").innerHTML='<div class="hint" style="color:var(--dim);text-align:center;padding:20px">'+esc(t("cfgm_empty"))+'</div>'; return; }
-  $("cfgm_list").innerHTML = g.configs.map(c=>{
-    const isActive = CFGM.active===c.uri;
-    const isSel = cfgmSel.has(c.id);
-    const ping = (c.ping!=null) ? '<span class="pingv">'+(c.ping<0?'✗':c.ping+'ms')+'</span>' : '';
-    const spd = (c.down!=null&&c.down>0) ? '<span class="pingv" style="color:var(--accent2)">⬇'+(Math.round(c.down/1000*10)/10)+(c.up>0?' ⬆'+(Math.round(c.up/1000*10)/10):'')+'Mb/s</span>' : '';
-    return '<div class="cfgrow'+(isActive?' active':'')+(isSel?' sel':'')+'" data-id="'+c.id+'">'+
-      '<div class="dotc"></div>'+
-      '<div class="nm">'+esc(c.name)+ping+spd+' <small>'+esc(protoOf(c.uri))+'</small></div>'+
-      '<div class="acts">'+
-        '<button class="iconbtn" data-act="connect" title="'+esc(t("c_connect"))+'">▶</button>'+
-        '<button class="iconbtn" data-act="test" title="'+esc(t("c_test"))+'">⏱</button>'+
-        '<button class="iconbtn" data-act="qr" title="QR">▦</button>'+
-        '<button class="iconbtn" data-act="copy" title="'+esc(t("c_copy"))+'">📋</button>'+
-        '<button class="iconbtn" data-act="edit" title="'+esc(t("c_edit"))+'">✎</button>'+
-        '<button class="iconbtn" data-act="del" title="'+esc(t("c_delete"))+'">✕</button>'+
-      '</div></div>';
-  }).join("");
-  // Wire rows.
+  if(!cfgmTesting) $("cfgm_count").textContent = g.configs.length + " " + t("cfgm_in_group");
+  const wrap=$("cfgm_list");
+  if(g.configs.length===0){ wrap.innerHTML='<div class="hint" style="color:var(--dim);text-align:center;padding:20px">'+esc(t("cfgm_empty"))+'</div>'; return; }
+  wrap.innerHTML='<table class="cfgtable"><thead><tr>'+
+    '<th class="num">#</th>'+
+    '<th>'+esc(t("th_name"))+'</th>'+
+    '<th>'+esc(t("th_relay"))+'</th>'+
+    '<th>'+esc(t("th_tcp"))+'</th>'+
+    '<th>'+esc(t("th_speed"))+'</th>'+
+    '</tr></thead><tbody>'+g.configs.map((c,i)=>cfgmRowHTML(c,i)).join("")+'</tbody></table>';
+  cfgmWireRows();
+}
+function cfgmRefreshRows(){
+  const tb=document.querySelector("#cfgm_list tbody"); if(!tb) return;
+  const g=curGroup();
+  tb.innerHTML=g.configs.map((c,i)=>cfgmRowHTML(c,i)).join("");
+  cfgmWireRows();
+}
+function cfgmWireRows(){
   const ids = curGroup().configs.map(c=>c.id);
-  document.querySelectorAll("#cfgm_list .cfgrow").forEach(row=>{
+  document.querySelectorAll("#cfgm_list tr.cfgr").forEach(row=>{
     const id=row.dataset.id;
     row.onclick=(e)=>{
-      if(e.target.closest(".acts")) return;
       if(e.shiftKey && cfgmLastClicked){
         const a=ids.indexOf(cfgmLastClicked), b=ids.indexOf(id);
         if(a>=0&&b>=0){ const [lo,hi]=a<b?[a,b]:[b,a]; for(let i=lo;i<=hi;i++) cfgmSel.add(ids[i]); }
@@ -2266,14 +2493,13 @@ function cfgmRender(){
         if(cfgmSel.has(id)) cfgmSel.delete(id); else cfgmSel.add(id);
         cfgmLastClicked=id;
       } else { cfgmSel.clear(); cfgmSel.add(id); cfgmLastClicked=id; }
-      cfgmRender();
+      cfgmRefreshRows();
     };
+    row.ondblclick=(e)=>{ e.preventDefault(); cfgmAction("connect", id); };
     row.oncontextmenu=(e)=>{ e.preventDefault();
-      // Right-clicking a row outside the selection selects just it.
-      if(!cfgmSel.has(id)){ cfgmSel.clear(); cfgmSel.add(id); cfgmLastClicked=id; cfgmRender(); }
+      if(!cfgmSel.has(id)){ cfgmSel.clear(); cfgmSel.add(id); cfgmLastClicked=id; cfgmRefreshRows(); }
       cfgmCtxMenu(e.clientX, e.clientY, id);
     };
-    row.querySelectorAll(".acts .iconbtn").forEach(b=>b.onclick=(e)=>{ e.stopPropagation(); cfgmAction(b.dataset.act, id); });
   });
 }
 // Context menu acting on the current selection (or the right-clicked row).
@@ -2289,6 +2515,7 @@ function cfgmCtxMenu(x, y, id){
     ["qr", "▦ "+t("c_share")],
     ["edit", "✎ "+t("c_edit")],
     ["copy", "📋 "+t("c_copy")+suffix],
+    ["paste", "📥 "+t("c_paste")],
     ["del", "✕ "+t("c_delete")+suffix],
   ];
   const m=document.createElement("div"); m.className="ctxmenu"; m.id="ctxmenu";
@@ -2307,13 +2534,57 @@ async function cfgmBulk(act, id){
   if(act==="connect"||act==="edit"||act==="qr"){ cfgmAction(act, id); return; }
   if(act==="del"){ const g=curGroup(); const del=new Set(ids); g.configs=g.configs.filter(c=>!del.has(c.id)); ids.forEach(i=>cfgmSel.delete(i)); cfgmSave(); cfgmRender(); return; }
   if(act==="copy"){ const uris=ids.map(i=>cfgmCfg(i)).filter(Boolean).map(c=>c.uri); if(await copyText(uris.join("\n"))) $("cfgm_count").innerHTML='<span class="ok">'+uris.length+' '+esc(t("cc_copied"))+'</span>'; return; }
-  if(act==="test"||act==="speed"){
-    $("cfgm_count").textContent=t("c_testing");
-    for(const i of ids){ const c=cfgmCfg(i); if(!c) continue; await cfgmPing(c, act==="speed"); cfgmRender(); }
-    cfgmSave(); $("cfgm_count").textContent=t("cc_done"); return;
-  }
+  if(act==="paste"){ await cfgmPasteClipboard(); return; }
+  if(act==="test"){ cfgmRunTests("relay"); return; }
+  if(act==="speed"){ cfgmRunTests("speed"); return; }
+}
+
+// ---- multi-threaded group testing with stop (button + Esc) ----
+let cfgmTesting=false, cfgmStopFlag=false;
+function cfgmTestUI(on){
+  cfgmTesting=on;
+  const s=$("cfgm_stoptest"); if(s) s.style.display=on?'':'none';
+  ["cfgm_pingall","cfgm_relayall","cfgm_speedall","cfgm_sortrelay","cfgm_selall"].forEach(id=>{ if($(id)) $(id).disabled=on; });
+}
+function cfgmStopTests(){ if(cfgmTesting) cfgmStopFlag=true; }
+async function cfgmRunTests(mode){
+  if(cfgmTesting) return;
+  const g=curGroup();
+  const ids = cfgmSel.size>0 ? cfgmSelIds() : g.configs.map(c=>c.id);
+  if(!ids.length) return;
+  cfgmStopFlag=false; cfgmTestUI(true);
+  const idset=new Set(ids);
+  g.configs.forEach(c=>{ if(idset.has(c.id)){ c.ping=null; c.tcp=null; c.tls=null; if(mode==="speed"){ c.down=null; c.up=null; } } });
+  cfgmRender();
+  const queue=[...ids]; let done=0;
+  const worker=async()=>{
+    while(queue.length){
+      if(cfgmStopFlag) return;
+      const id=queue.shift(); const c=cfgmCfg(id); if(!c) continue;
+      await cfgmPing(c, mode);
+      done++; $("cfgm_count").textContent=done+"/"+ids.length;
+      cfgmRefreshRows();
+    }
+  };
+  const threads=Math.min(mode==="speed"?3:6, ids.length);
+  await Promise.all(Array.from({length:threads},()=>worker()));
+  cfgmTestUI(false); cfgmSave(); cfgmRefreshRows();
+  $("cfgm_count").textContent = cfgmStopFlag ? t("cc_stopped") : t("cc_done");
 }
 function cfgmCfg(id){ return curGroup().configs.find(c=>c.id===id); }
+// Read configs from the clipboard and add them to the current group.
+async function cfgmPasteClipboard(){
+  let text="";
+  try{ text = await navigator.clipboard.readText(); }
+  catch(err){
+    $("cfgm_count").innerHTML='<span class="bad">'+esc(t("cc_paste_denied"))+'</span>';
+    return;
+  }
+  const lines=(text||"").split(/\r?\n/);
+  const n=cfgmAddLinks(lines);
+  $("cfgm_count").innerHTML = n>0 ? '<span class="ok">+'+n+' '+esc(t("cc_pasted"))+'</span>' : '<span class="bad">'+esc(t("cc_no_configs"))+'</span>';
+  if(n>0){ cfgmRender(); }
+}
 async function cfgmAction(act, id){
   const c = cfgmCfg(id); if(!c) return;
   if(act==="connect"){ CFGM.active=c.uri; cfgmSave(); cfgmRender(); xrayConnect(encodeURIComponent(c.uri)); }
@@ -2321,16 +2592,16 @@ async function cfgmAction(act, id){
   else if(act==="del"){ const g=curGroup(); g.configs=g.configs.filter(x=>x.id!==id); cfgmSel.delete(id); cfgmSave(); cfgmRender(); }
   else if(act==="qr"){ cfgmShare(id); }
   else if(act==="edit"){ cfgmEdit(id); }
-  else if(act==="test"){ await cfgmPing(c); cfgmRender(); cfgmSave(); }
+  else if(act==="test"){ await cfgmPing(c,"relay"); cfgmRefreshRows(); cfgmSave(); }
 }
-// cfgmPing: relay+tcp+tls (fast). withSpeed also measures down/up through xray.
-async function cfgmPing(c, withSpeed){
+// cfgmPing: relay+tcp+tls (fast). mode "speed" also measures down/up through xray.
+async function cfgmPing(c, mode){
   const p = await api("/api/uri/parse",{uri:c.uri});
-  if(!p.valid){ c.ping=-1; return; }
+  if(!p.valid){ c.ping=-1; c.tcp=-1; return; }
   const r = await api("/api/sni/relay-test",{connect_ip:p.host,connect_port:p.port,fake_sni:p.sni||p.host,timeout:5});
   if(r && r.ok){ c.ping = r.relay_ms>=0?r.relay_ms:(r.tls_ms>=0?r.tls_ms:r.tcp_ms); c.tcp=r.tcp_ms; c.tls=r.tls_ms; }
   else { c.ping=-1; c.tcp=-1; c.tls=-1; }
-  if(withSpeed){
+  if(mode==="speed"){
     const m = await api("/api/xray/mass",{uris:c.uri,direct:true,with_speeds:true,download_bytes:1500000,upload_bytes:800000,timeout:14});
     const row = (m && m.results && m.results[0]) || null;
     if(row){ c.down=row.down_kbps; c.up=row.up_kbps; if(row.relay_ms>=0) c.ping=row.relay_ms; }
@@ -2353,7 +2624,7 @@ function splitHP(hp){ const i=hp.lastIndexOf(":"); return i<0?[hp,"443"]:[hp.sli
 function parseLink(uri){
   uri=(uri||"").trim();
   const o={protocol:"?",name:"",address:"",port:443,id:"",method:"",aid:0,net:"tcp",security:"none",
-    sni:"",hostHeader:"",path:"",flow:"",fp:"",alpn:"",encryption:"none",pbk:"",sid:"",raw:uri};
+    sni:"",hostHeader:"",path:"",flow:"",fp:"",alpn:"",encryption:"none",pbk:"",sid:"",allowInsecure:false,raw:uri};
   try{
     if(uri.startsWith("vmess://")){
       o.protocol="vmess";
@@ -2362,6 +2633,7 @@ function parseLink(uri){
       o.name=j.ps||""; o.address=j.add||""; o.port=+j.port||443; o.id=j.id||""; o.aid=+j.aid||0;
       o.net=j.net||"tcp"; o.path=j.path||""; o.hostHeader=j.host||""; o.sni=j.sni||j.host||"";
       o.security=(j.tls==="tls"||j.tls===true)?"tls":"none"; o.alpn=j.alpn||""; o.fp=j.fp||""; o.encryption=j.scy||"auto";
+      o.allowInsecure=(String(j.allowInsecure)==="true"||j.allowInsecure===1||j.allowInsecure==="1");
       return o;
     }
     if(uri.startsWith("ss://")){
@@ -2386,6 +2658,7 @@ function parseLink(uri){
       o.path=q.get("path")||""; o.hostHeader=q.get("host")||""; o.flow=q.get("flow")||"";
       o.fp=q.get("fp")||""; o.alpn=q.get("alpn")||""; o.encryption=q.get("encryption")||"none";
       o.pbk=q.get("pbk")||""; o.sid=q.get("sid")||"";
+      o.allowInsecure=(q.get("allowInsecure")==="1"||q.get("allowInsecure")==="true"||q.get("allowinsecure")==="1");
       return o;
     }
   }catch(e){}
@@ -2396,6 +2669,7 @@ function buildLink(o){
     const j={v:"2",ps:o.name||"",add:o.address,port:String(o.port),id:o.id,aid:String(o.aid||0),
       scy:o.encryption||"auto",net:o.net||"tcp",type:"none",host:o.hostHeader||"",path:o.path||"",
       tls:o.security==="tls"?"tls":"",sni:o.sni||"",alpn:o.alpn||"",fp:o.fp||""};
+    if(o.allowInsecure) j.allowInsecure="true";
     return "vmess://"+b64e(JSON.stringify(j));
   }
   if(o.protocol==="shadowsocks"){
@@ -2407,6 +2681,7 @@ function buildLink(o){
   if(o.sni)q.set("sni",o.sni); if(o.net)q.set("type",o.net); if(o.path)q.set("path",o.path);
   if(o.hostHeader)q.set("host",o.hostHeader); if(o.flow)q.set("flow",o.flow);
   if(o.fp)q.set("fp",o.fp); if(o.alpn)q.set("alpn",o.alpn); if(o.pbk)q.set("pbk",o.pbk); if(o.sid)q.set("sid",o.sid);
+  if(o.allowInsecure)q.set("allowInsecure","1");
   return o.protocol+"://"+encodeURIComponent(o.id)+"@"+o.address+":"+o.port+"?"+q.toString()+(o.name?("#"+encodeURIComponent(o.name)):"");
 }
 function fld(label,id,val,ph){ return '<label style="display:block;text-align:left;margin-bottom:9px"><span class="lbl">'+esc(label)+'</span><input id="'+id+'" value="'+esc(val||"")+'" placeholder="'+esc(ph||"")+'"></label>'; }
@@ -2436,6 +2711,7 @@ function cfgmEdit(id){
       body+=sel(t("ed_fp"),"ed_fp",o.fp,["","chrome","firefox","safari","ios","edge","random","randomized"]);
       body+=fld(t("ed_alpn"),"ed_alpn",o.alpn,"h2,http/1.1");
       if(o.security==="reality"||o.pbk){ body+=fld("publicKey (pbk)","ed_pbk",o.pbk); body+=fld("shortId (sid)","ed_sid",o.sid); }
+      body+='<label class="checkrow" style="display:flex;gap:8px;align-items:flex-start;text-align:left;margin:4px 0 2px"><input type="checkbox" id="ed_ai"'+(o.allowInsecure?" checked":"")+'><span data-i18n="ed_allowinsecure">Allow insecure (skip TLS certificate check). Default OFF — only enable for self-signed servers.</span></label>';
     }
   }
   body+='</div><textarea id="ed_preview" readonly style="margin-top:10px;min-height:60px;font-size:11px;color:var(--dim)"></textarea>';
@@ -2461,6 +2737,7 @@ function cfgmEdit(id){
     if($("ed_alpn")) n.alpn=$("ed_alpn").value.trim();
     if($("ed_pbk")) n.pbk=$("ed_pbk").value.trim();
     if($("ed_sid")) n.sid=$("ed_sid").value.trim();
+    if($("ed_ai")) n.allowInsecure=$("ed_ai").checked;
     return buildLink(n);
   }
   function refresh(){ if($("ed_preview")) $("ed_preview").value=gather(); }
@@ -2472,6 +2749,21 @@ function cfgmEdit(id){
 }
 // Buttons
 $("cfgm_addgroup").onclick=()=>{ const n=prompt(t("cfgm_group_name")); if(!n) return; const id="g"+Date.now().toString(36); CFGM.groups.push({id,name:n,configs:[]}); CFGM.cur=id; cfgmSave(); cfgmRender(); };
+$("cfgm_folder").onclick=async()=>{
+  $("cfgm_count").textContent=t("c_loading");
+  const r=await api("/api/configs/folder/load",{});
+  if(!(r&&r.found&&r.data&&r.data.groups&&r.data.groups.length)){ $("cfgm_count").innerHTML='<span class="bad">'+esc(t("cc_no_configs"))+'</span>'; return; }
+  let added=0;
+  r.data.groups.forEach(g=>{
+    if(!g||!g.name) return;
+    let ex=CFGM.groups.find(x=>x.name===g.name);
+    if(!ex){ ex={id:"g"+Date.now().toString(36)+Math.floor(Math.random()*1e4),name:g.name,configs:[]}; CFGM.groups.push(ex); }
+    const have=new Set(ex.configs.map(c=>c.uri));
+    (g.configs||[]).forEach(c=>{ if(c&&c.uri){ const u=forceSecure(c.uri); if(!have.has(u)){ ex.configs.push({id:c.id||uid(),uri:u,name:c.name||nameOf(u)}); have.add(u); added++; } } });
+  });
+  cfgmSave(); cfgmRender();
+  $("cfgm_count").innerHTML='<span class="ok">+'+added+' · '+esc(r.folder||"configs/")+'</span>';
+};
 $("cfgm_rengroup").onclick=()=>{ const g=curGroup(); const n=prompt(t("cfgm_group_name"), g.name); if(n){ g.name=n; cfgmSave(); cfgmRender(); } };
 $("cfgm_delgroup").onclick=()=>{ if(CFGM.groups.length<=1){ return; } if(!confirm(t("cfgm_del_confirm"))) return; CFGM.groups=CFGM.groups.filter(x=>x.id!==CFGM.cur); CFGM.cur=CFGM.groups[0].id; cfgmSel.clear(); cfgmSave(); cfgmRender(); };
 $("cfgm_addpaste").onclick=()=>{ const n=cfgmAddLinks($("cfgm_paste").value.split("\n")); $("cfgm_paste").value=""; $("cfgm_count").textContent="+"+n; setTimeout(cfgmRender,800); };
@@ -2496,8 +2788,11 @@ $("cfgm_sni").onclick=async()=>{ $("cfgm_count").textContent=t("c_loading");
   CFGM.groups.push({id,name:t("cfgm_sni_grp"),configs:[]}); CFGM.cur=id; cfgmSel.clear();
   const n=cfgmAddLinks(r.configs||[]);
   $("cfgm_count").innerHTML='<span class="ok">+'+n+' '+esc(t("c_configs_added"))+'</span>'; };
-$("cfgm_testall").onclick=async()=>{ const g=curGroup(); $("cfgm_count").textContent=t("c_testing");
-  for(const c of g.configs){ await cfgmPing(c); cfgmRender(); } cfgmSave(); $("cfgm_count").textContent=t("cc_done"); };
+$("cfgm_pingall").onclick=()=>cfgmRunTests("ping");
+$("cfgm_relayall").onclick=()=>cfgmRunTests("relay");
+$("cfgm_speedall").onclick=()=>cfgmRunTests("speed");
+$("cfgm_stoptest").onclick=()=>cfgmStopTests();
+$("cfgm_sortrelay").onclick=()=>{ const g=curGroup(); const rank=c=>(typeof c.ping==="number"&&c.ping>=0)?c.ping:Infinity; g.configs.sort((a,b)=>rank(a)-rank(b)); cfgmSave(); cfgmRender(); };
 $("cfgm_copyall").onclick=async()=>{ const g=curGroup(); if(await copyText(g.configs.map(c=>c.uri).join("\n"))) $("cfgm_count").innerHTML='<span class="ok">'+esc(t("cc_copied"))+'</span>'; };
 // Drag & drop
 (function(){
@@ -2518,6 +2813,19 @@ document.addEventListener("keydown",e=>{
   if((e.ctrlKey||e.metaKey) && (e.key==="a"||e.key==="A")){
     e.preventDefault(); const g=curGroup(); cfgmSel=new Set(g.configs.map(c=>c.id)); cfgmRender(); return;
   }
+  if((e.ctrlKey||e.metaKey) && (e.key==="v"||e.key==="V")){
+    e.preventDefault(); cfgmPasteClipboard(); return;
+  }
+  if((e.ctrlKey||e.metaKey) && (e.key==="c"||e.key==="C") && cfgmSel.size>0){
+    e.preventDefault(); cfgmBulk("copy", [...cfgmSel][0]); return;
+  }
+  if(e.key==="Escape" && cfgmTesting){ e.preventDefault(); cfgmStopTests(); return; }
+  if((e.key==="Delete"||e.key==="Backspace") && cfgmSel.size>0){
+    e.preventDefault();
+    const del=new Set(cfgmSelIds()); if(!del.size) return;
+    const g=curGroup(); g.configs=g.configs.filter(c=>!del.has(c.id));
+    cfgmSel.clear(); cfgmSave(); cfgmRender(); return;
+  }
   if(e.key==="Enter" && cfgmSel.size===1){ const id=[...cfgmSel][0]; cfgmAction("connect", id); }
 });
 
@@ -2535,6 +2843,33 @@ $("psi_start").onclick=async()=>{
   psiUI(true,r);
 };
 $("psi_stop").onclick=async()=>{ await api("/api/psiphon/stop"); psiUI(false); };
+$("psi_open").onclick=async()=>{
+  const r=await api("/api/psiphon/open",{});
+  $("psi_out").innerHTML = (r&&r.ok)
+    ? '<div class="result ok">✓ '+esc(r.path||"")+'</div>'
+    : '<div class="result bad">'+esc((r&&r.error)||"failed")+'</div>';
+};
+$("psi_download").onclick=async()=>{
+  dlStart("psi_download");
+  $("psi_out").innerHTML='<div class="result cy">'+esc(t("c_loading"))+'</div>';
+  const r=await api("/api/psiphon/download",{});
+  dlEnd("psi_download");
+  $("psi_out").innerHTML = (r&&r.ok)
+    ? '<div class="result ok">✓ '+esc(r.path||"psiphon3.exe")+'</div>'
+    : '<div class="result bad">'+esc((r&&r.error)||"failed")+'</div>';
+};
+$("psi_overmitm").onclick=async()=>{
+  $("psi_out").innerHTML='<div class="result cy">'+esc(t("c_psi_starting_mitm"))+'</div>';
+  const r=await api("/api/psiphon/over-mitm",{socks_port:num($("psi_sp").value),http_port:num($("psi_hp").value)});
+  if(r.error){ psiUI(false); $("psi_out").innerHTML='<div class="result bad">'+esc(r.error)+'</div>'; return; }
+  if($("psi_up")) $("psi_up").value=r.upstream||"";
+  if(r.external){
+    psiUI(false);
+    $("psi_out").innerHTML='<div class="result ok">'+esc(t("psi_ext_note"))+' <b>'+esc(r.upstream||"")+'</b></div>';
+    return;
+  }
+  psiUI(true,r);
+};
 
 $("sn_go").onclick=async()=>{
   $("sn_out").innerHTML='<div class="result cy">'+esc(t("c_testing"))+'</div>';
@@ -2733,16 +3068,24 @@ function mdfUI(running,st){
 }
 $("mdf_reset").onclick=()=>mdfLoadDefaults(true);
 const MDF_DOH={
-  cf1:{ip:"1.1.1.1",sni:"www.microsoft.com",host:"cloudflare-dns.com"},
-  cf2:{ip:"1.0.0.1",sni:"www.microsoft.com",host:"cloudflare-dns.com"},
-  google1:{ip:"8.8.8.8",sni:"www.google.com",host:"dns.google"},
-  google2:{ip:"8.8.4.4",sni:"www.google.com",host:"dns.google"},
-  quad9:{ip:"9.9.9.9",sni:"dns.quad9.net",host:"dns.quad9.net"}
+  cf1:{ip:"1.1.1.1",sni:"www.microsoft.com",host:"cloudflare-dns.com",path:"/dns-query"},
+  cf2:{ip:"1.0.0.1",sni:"www.microsoft.com",host:"cloudflare-dns.com",path:"/dns-query"},
+  cffam:{ip:"1.1.1.3",sni:"www.microsoft.com",host:"family.cloudflare-dns.com",path:"/dns-query"},
+  google1:{ip:"8.8.8.8",sni:"www.google.com",host:"dns.google",path:"/resolve"},
+  google2:{ip:"8.8.4.4",sni:"www.google.com",host:"dns.google",path:"/resolve"},
+  quad9:{ip:"9.9.9.9",sni:"dns.quad9.net",host:"dns.quad9.net",path:"/dns-query"},
+  adguard:{ip:"94.140.14.140",sni:"unfiltered.adguard-dns.com",host:"unfiltered.adguard-dns.com",path:"/dns-query"},
+  opendns:{ip:"208.67.222.222",sni:"doh.opendns.com",host:"doh.opendns.com",path:"/dns-query"},
+  cleanbrowsing:{ip:"185.228.168.168",sni:"doh.cleanbrowsing.org",host:"doh.cleanbrowsing.org",path:"/doh/family-filter/"},
+  comodo:{ip:"8.26.56.26",sni:"dns.comodo.com",host:"dns.comodo.com",path:"/dns-query"},
+  nord:{ip:"",sni:"dns1.nordvpn.com",host:"dns1.nordvpn.com",path:"/dns-query"}
 };
 $("mdf_doh_preset").onchange=()=>{
   const p=MDF_DOH[$("mdf_doh_preset").value]; if(!p) return;
   $("mdf_doh_ip").value=p.ip; $("mdf_doh_sni").value=p.sni; $("mdf_doh_host").value=p.host;
+  mdfDohPath=p.path||"/dns-query";
 };
+let mdfDohPath="/dns-query";
 $("mdf_sysset").onclick=async()=>{
   const port=num($("mdf_port").value)||8087;
   const r=await api("/api/sysproxy/set",{mode:"http",host:"127.0.0.1",port});
@@ -2755,7 +3098,7 @@ $("mdf_sysclear").onclick=async()=>{
 $("mdf_start").onclick=async()=>{
   const cfg={listen_host:"127.0.0.1",listen_port:num($("mdf_port").value)||8087,
     rules:mdfParseRules(),default:$("mdf_default").value.trim(),
-    doh_ip:$("mdf_doh_ip").value.trim(),doh_sni:$("mdf_doh_sni").value.trim(),doh_host:$("mdf_doh_host").value.trim()};
+    doh_ip:$("mdf_doh_ip").value.trim(),doh_sni:$("mdf_doh_sni").value.trim(),doh_host:$("mdf_doh_host").value.trim(),doh_path:mdfDohPath};
   $("mdf_out").innerHTML='<div class="result cy">'+esc(t("c_starting"))+'</div>';
   const r=await api("/api/mitmdf/start",cfg);
   if(r&&r.error){ $("mdf_out").innerHTML='<div class="result bad">'+esc(r.error)+'</div>'; mdfUI(false); return; }
@@ -2767,6 +3110,130 @@ $("mdf_ca_crt").onclick=()=>{ window.open("/api/mitmdf/ca?fmt=crt","_blank"); $(
 $("mdf_port").addEventListener("input",()=>{ const pl=$("mdf_portlbl"); if(pl) pl.textContent=$("mdf_port").value; });
 let mdfPoll=null;
 function mdfStartPoll(){ if(mdfPoll) return; mdfPoll=setInterval(async()=>{ const s=await api("/api/mitmdf/status",{}); if(s){ if(!s.running){ clearInterval(mdfPoll); mdfPoll=null; mdfUI(false); } else mdfUI(true,s); } },2500); }
+
+/* ===================== Tor ===================== */
+function torUI(running,st){
+  st=st||{};
+  $("tor_start").disabled=running; $("tor_stop").disabled=!running;
+  const pill=$("tor_pill"); pill.className="pill "+(running?"run":"off");
+  let label = running ? (st.bootstrap>=100?t("c_running"):(t("c_connecting")+" "+(st.bootstrap||0)+"%")) : t("c_stopped");
+  pill.innerHTML='<span class="dot '+(running?"on":"")+'"></span>'+esc(label);
+  if(running){
+    $("tor_meta").innerHTML='<span class="ok">SOCKS 127.0.0.1:'+(st.socks||9050)+(st.tun_running?' · TUN':'')+'</span>';
+    torStartPoll();
+  } else { $("tor_meta").textContent=""; }
+}
+$("tor_start").onclick=async()=>{
+  $("tor_out").innerHTML='<div class="result cy">'+esc(t("c_connecting"))+'</div>';
+  const o={transport:$("tor_transport").value,bridges:$("tor_bridges").value,
+    socks_port:num($("tor_socks").value)||9050,bin_path:$("tor_bin").value.trim(),
+    pt_path:$("tor_pt").value.trim(),tun:$("tor_tun").checked};
+  const r=await api("/api/tor/start",o);
+  if(r&&r.error){ $("tor_out").innerHTML='<div class="result bad">'+esc(r.error)+'</div>'; torUI(false); return; }
+  $("tor_out").innerHTML=""; if(r&&r.tun_error){ $("tor_out").innerHTML='<div class="result bad">TUN: '+esc(r.tun_error)+'</div>'; }
+  torUI(true,r);
+};
+$("tor_stop").onclick=async()=>{ await api("/api/tor/stop",{}); torUI(false); };
+$("tor_getbridges").onclick=async()=>{
+  const r=await api("/api/tor/bridges",{transport:$("tor_transport").value});
+  if(r&&r.bridges){ $("tor_bridges").value=r.bridges; $("tor_meta").innerHTML='<span class="ok">'+esc(t("cc_done"))+'</span>'; }
+};
+$("tor_snowflake").onclick=async()=>{
+  $("tor_transport").value="snowflake";
+  const r=await api("/api/tor/bridges",{transport:"snowflake"});
+  if(r&&r.bridges){ $("tor_bridges").value=r.bridges; $("tor_meta").innerHTML='<span class="ok">snowflake ✓</span>'; }
+};
+$("tor_captcha").onclick=async()=>{
+  const tr=$("tor_transport").value==="none"?"obfs4":$("tor_transport").value;
+  $("tor_meta").textContent=t("c_loading");
+  const r=await api("/api/tor/moat/fetch",{transport:tr});
+  if(!(r&&r.ok)){ $("tor_meta").innerHTML='<span class="bad">'+esc((r&&r.error)||"failed")+'</span>'; return; }
+  $("tor_meta").textContent="";
+  showModal('<h3>'+esc(t("c_tor_captcha"))+'</h3>'+
+    '<p class="hint">'+esc(t("tor_captcha_h"))+'</p>'+
+    '<img src="'+r.image+'" alt="captcha" style="max-width:100%;border-radius:8px;background:#fff;padding:4px">'+
+    '<input id="moat_sol" placeholder="'+esc(t("tor_captcha_ph"))+'" style="margin-top:10px">'+
+    '<div id="moat_err" class="bad" style="min-height:16px"></div>'+
+    '<div class="row"><button class="act btn-go" id="moat_submit">'+esc(t("c_ok"))+'</button>'+
+    '<button class="act btn-ghost" onclick="closeModal()">'+esc(t("c_close"))+'</button></div>');
+  $("moat_submit").onclick=async()=>{
+    const sol=$("moat_sol").value.trim(); if(!sol) return;
+    $("moat_submit").disabled=true; $("moat_err").textContent=t("c_loading");
+    const c=await api("/api/tor/moat/check",{transport:tr,challenge:r.challenge,id:r.id,solution:sol});
+    $("moat_submit").disabled=false;
+    if(c&&c.ok&&c.bridges){ $("tor_transport").value=tr; $("tor_bridges").value=c.bridges; closeModal(); $("tor_meta").innerHTML='<span class="ok">'+esc(t("cc_done"))+'</span>'; }
+    else $("moat_err").textContent=(c&&c.error)||t("tor_captcha_wrong");
+  };
+};
+$("tor_download").onclick=async()=>{
+  dlStart("tor_download");
+  const r=await api("/api/tor/download",{});
+  dlEnd("tor_download");
+  $("tor_out").innerHTML = (r&&r.ok)
+    ? '<div class="result ok">✓ '+esc((r.files||0)+" files")+'</div>'
+    : '<div class="result bad">'+esc((r&&r.error)||"failed")+'</div>';
+};
+let torPoll=null;
+function torStartPoll(){ if(torPoll) return; torPoll=setInterval(async()=>{ const s=await api("/api/tor/status",{}); if(s){ if(!s.running){ clearInterval(torPoll); torPoll=null; torUI(false); } else torUI(true,s); } },2500); }
+
+/* ===================== Donation ===================== */
+const DON_WALLETS=[
+  {name:"Bitcoin",net:"BTC",sym:"BTC",cc:"linear-gradient(90deg,#f7931a,#ffbf69)",addr:"bc1qa7wtepdm5gqkn90mzv7n80p8uguay62la3aa3t"},
+  {name:"Ethereum",net:"ERC-20",sym:"ETH",cc:"linear-gradient(90deg,#627eea,#a5b4fc)",addr:"0x449945E00c1Ad50B0705547677Bbf6E34f16698A"},
+  {name:"Solana",net:"SOL",sym:"SOL",cc:"linear-gradient(90deg,#14f195,#9945ff)",addr:"Fmis7BhiuHqVDnPeSAQ4VeUfEoY3KafpgbCt4VTGm6MZ"},
+  {name:"BNB",net:"BEP-20",sym:"BNB",cc:"linear-gradient(90deg,#f3ba2f,#ffe08a)",addr:"0x449945E00c1Ad50B0705547677Bbf6E34f16698A"},
+  {name:"TRON",net:"TRX",sym:"TRX",cc:"linear-gradient(90deg,#eb0029,#ff6b6b)",addr:"TU1svYx5YeeBz1bWCkJWYNx6oGE8WukWJ5"},
+  {name:"USDT",net:"TRC-20",sym:"USDT",cc:"linear-gradient(90deg,#26a17b,#5ee3b8)",addr:"TU1svYx5YeeBz1bWCkJWYNx6oGE8WukWJ5"},
+  {name:"USDT",net:"BEP-20",sym:"USDT",cc:"linear-gradient(90deg,#26a17b,#f3ba2f)",addr:"0x449945E00c1Ad50B0705547677Bbf6E34f16698A"},
+  {name:"USDT",net:"ERC-20",sym:"USDT",cc:"linear-gradient(90deg,#26a17b,#627eea)",addr:"0x449945E00c1Ad50B0705547677Bbf6E34f16698A"}
+];
+let donBuilt=false;
+async function donRender(){
+  if(donBuilt) return; donBuilt=true;
+  const g=$("don_grid"); if(!g) return; g.innerHTML="";
+  for(const w of DON_WALLETS){
+    const card=document.createElement("div");
+    card.className="don-card"; card.style.setProperty("--cc",w.cc);
+    card.innerHTML=
+      '<div class="don-head"><div class="don-sym" style="background:'+w.cc+'">'+esc(w.sym)+'</div>'+
+      '<div><div class="don-name">'+esc(w.name)+'</div><div class="don-net">'+esc(w.net)+'</div></div></div>'+
+      '<img class="don-qr" alt="'+esc(w.name)+' QR" loading="lazy">'+
+      '<div class="don-addr"><code>'+esc(w.addr)+'</code><button class="don-copy">'+esc(t("c_copy"))+'</button></div>';
+    g.appendChild(card);
+    const img=card.querySelector(".don-qr");
+    api("/api/qr",{text:w.addr}).then(r=>{ if(r&&r.png) img.src=r.png; });
+    card.querySelector(".don-copy").onclick=async(e)=>{
+      if(await copyText(w.addr)){ const b=e.target; const o=b.textContent; b.textContent=t("cc_copied"); setTimeout(()=>b.textContent=o,1200); }
+    };
+  }
+}
+
+/* ===================== App Update ===================== */
+let updURL="";
+async function updRefresh(){ const v=await api("/api/app/version",{}); if(v&&v.version&&$("upd_cur")) $("upd_cur").textContent="v"+v.version; }
+$("upd_check").onclick=async()=>{
+  $("upd_meta").textContent=t("c_loading"); $("upd_out").innerHTML="";
+  const r=await api("/api/app/update/check",{mirror:($("upd_mirror").value||"").trim()});
+  if(!(r&&r.ok)){ $("upd_meta").innerHTML='<span class="bad">'+esc((r&&r.error)||"failed")+'</span>'; return; }
+  $("upd_cur").textContent="v"+r.current; $("upd_meta").textContent="";
+  if(r.update_available){
+    updURL=r.url||"";
+    $("upd_download").style.display="";
+    $("upd_out").innerHTML='<div class="result ok"><b>v'+esc(r.latest)+'</b> '+esc(t("upd_avail"))+(r.notes?('<br>'+esc(r.notes)):'')+'</div>';
+  } else {
+    $("upd_download").style.display="none";
+    $("upd_out").innerHTML='<div class="result cy">'+esc(t("upd_latest"))+'</div>';
+  }
+};
+$("upd_download").onclick=async()=>{
+  if(!updURL){ return; }
+  dlStart("upd_download");
+  const r=await api("/api/app/update/download",{url:updURL,mirror:($("upd_mirror").value||"").trim()});
+  dlEnd("upd_download");
+  $("upd_out").innerHTML = (r&&r.ok)
+    ? '<div class="result ok">✓ '+esc(r.path||"")+'<br>'+esc(t("upd_done"))+'</div>'
+    : '<div class="result bad">'+esc((r&&r.error)||"failed")+'</div>';
+};
 
 /* ===================== windivert ===================== */
 async function wdRefresh(){
@@ -2783,6 +3250,13 @@ async function wdRefresh(){
     '</div>';
 }
 $("wd_refresh").onclick=wdRefresh;
+$("wd_download").onclick=async()=>{
+  dlStart("wd_download");
+  const r=await api("/api/windivert/download",{});
+  dlEnd("wd_download");
+  if(r&&r.ok){ if($("wd_path")) $("wd_path").value=r.dir||""; }
+  wdRefresh();
+};
 $("wd_install").onclick=async()=>{ await api("/api/windivert/install",{path:$("wd_path").value.trim()}); wdRefresh(); };
 $("wd_uninstall").onclick=async()=>{ await api("/api/windivert/uninstall"); wdRefresh(); };
 

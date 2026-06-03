@@ -12,8 +12,8 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"errors"
+	"ezsni/internal/ghdl"
 	"io"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -21,7 +21,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"ezsni/internal/sni"
 )
@@ -42,16 +41,19 @@ func Find() string {
 	if p, err := exec.LookPath(binName()); err == nil {
 		return p
 	}
+	var roots []string
 	if exe, err := os.Executable(); err == nil {
-		cand := filepath.Join(filepath.Dir(exe), binName())
-		if st, err := os.Stat(cand); err == nil && !st.IsDir() {
-			return cand
-		}
+		roots = append(roots, filepath.Dir(exe))
 	}
 	if cwd, err := os.Getwd(); err == nil {
-		cand := filepath.Join(cwd, binName())
-		if st, err := os.Stat(cand); err == nil && !st.IsDir() {
-			return cand
+		roots = append(roots, cwd)
+	}
+	for _, r := range roots {
+		for _, sub := range []string{"", "singbox"} {
+			cand := filepath.Join(r, sub, binName())
+			if st, err := os.Stat(cand); err == nil && !st.IsDir() {
+				return cand
+			}
 		}
 	}
 	return ""
@@ -93,60 +95,38 @@ func Download(destDir string, log LogFunc) (string, error) {
 		destDir, _ = os.Getwd()
 	}
 	osArch, isZip := assetSuffix()
-	log("Querying latest sing-box release…", "ACCENT")
-	client := &http.Client{Timeout: 60 * time.Second}
-	rel, err := client.Get("https://api.github.com/repos/SagerNet/sing-box/releases/latest")
+	log("Resolving latest sing-box release…", "ACCENT")
+	tag, err := ghdl.LatestTag("SagerNet/sing-box")
 	if err != nil {
 		return "", err
 	}
-	defer rel.Body.Close()
-	var meta struct {
-		Tag    string `json:"tag_name"`
-		Assets []struct {
-			Name string `json:"name"`
-			URL  string `json:"browser_download_url"`
-		} `json:"assets"`
-	}
-	if err := json.NewDecoder(rel.Body).Decode(&meta); err != nil {
-		return "", err
-	}
-	// Match e.g. sing-box-1.10.1-linux-amd64.tar.gz / -windows-amd64.zip.
+	ver := strings.TrimPrefix(tag, "v")
 	wantExt := ".tar.gz"
 	if isZip {
 		wantExt = ".zip"
 	}
-	var url, name string
-	for _, a := range meta.Assets {
-		if strings.Contains(a.Name, osArch) && strings.HasSuffix(a.Name, wantExt) &&
-			!strings.Contains(a.Name, "legacy") {
-			url, name = a.URL, a.Name
-			break
-		}
-	}
-	if url == "" {
-		return "", errors.New("no sing-box asset for " + osArch + " in release " + meta.Tag)
-	}
-	log("Downloading "+name+" ("+meta.Tag+")…", "ACCENT")
-	dl, err := client.Get(url)
+	name := "sing-box-" + ver + "-" + osArch + wantExt
+	url := ghdl.AssetURL("SagerNet/sing-box", tag, name)
+	log("Downloading "+name+" ("+tag+")…", "ACCENT")
+	data, err := ghdl.Download(url)
 	if err != nil {
 		return "", err
 	}
-	defer dl.Body.Close()
-	data, err := io.ReadAll(dl.Body)
-	if err != nil {
-		return "", err
-	}
-	dest := filepath.Join(destDir, binName())
+	var paths []string
 	if isZip {
-		err = extractZip(data, dest)
+		paths, err = ghdl.ExtractZip(data, destDir)
 	} else {
-		err = extractTarGz(data, dest)
+		paths, err = ghdl.ExtractTarGz(data, destDir)
 	}
 	if err != nil {
 		return "", err
 	}
-	log("✓ sing-box installed at "+dest, "OK")
-	return dest, nil
+	bin := ghdl.PickBinary(paths, binName(), "sing-box")
+	if bin == "" {
+		return "", errors.New(binName() + " not found inside the release archive")
+	}
+	log("✓ sing-box extracted to "+destDir, "OK")
+	return bin, nil
 }
 
 func extractZip(data []byte, dest string) error {
@@ -154,18 +134,41 @@ func extractZip(data []byte, dest string) error {
 	if err != nil {
 		return err
 	}
+	win := runtime.GOOS == "windows"
+	var pick *zip.File
 	for _, f := range zr.File {
-		if filepath.Base(f.Name) != binName() {
+		if f.FileInfo().IsDir() {
 			continue
 		}
-		rc, err := f.Open()
-		if err != nil {
-			return err
+		if filepath.Base(f.Name) == binName() {
+			pick = f
+			break
 		}
-		defer rc.Close()
-		return writeBin(rc, dest)
 	}
-	return errors.New(binName() + " not found inside the release archive")
+	if pick == nil { // fallback: largest regular file (the sing-box binary)
+		var maxSize uint64
+		for _, f := range zr.File {
+			if f.FileInfo().IsDir() {
+				continue
+			}
+			if win && !strings.HasSuffix(strings.ToLower(f.Name), ".exe") {
+				continue
+			}
+			if f.UncompressedSize64 >= maxSize {
+				maxSize = f.UncompressedSize64
+				pick = f
+			}
+		}
+	}
+	if pick == nil {
+		return errors.New(binName() + " not found inside the release archive")
+	}
+	rc, err := pick.Open()
+	if err != nil {
+		return err
+	}
+	defer rc.Close()
+	return writeBin(rc, dest)
 }
 
 func extractTarGz(data []byte, dest string) error {

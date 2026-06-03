@@ -22,6 +22,8 @@ import (
 	"ezsni/internal/psiphon"
 	"ezsni/internal/singbox"
 	"ezsni/internal/splus"
+	"ezsni/internal/tor"
+	"ezsni/internal/tun2socks"
 	"ezsni/internal/xray"
 )
 
@@ -39,6 +41,8 @@ type Server struct {
 	desyncDefaults desync.Config
 	xrayRunner     *xray.Runner
 	singboxRunner  *singbox.Runner
+	t2s            *tun2socks.Runner
+	torr           *tor.Runner
 	gtun           *gtunnel.Runner
 	mitmdf         *mitmdf.Runner
 	psi            *psiphon.Controller
@@ -55,6 +59,8 @@ func New() *Server {
 	s := &Server{bus: logbus.New(), desyncDefaults: desync.DefaultConfig()}
 	s.xrayRunner = xray.NewRunner(s.bus.Log)
 	s.singboxRunner = singbox.NewRunner(s.bus.Log)
+	s.t2s = tun2socks.NewRunner(s.bus.Log)
+	s.torr = tor.NewRunner(s.bus.Log)
 	s.gtun = gtunnel.NewRunner(s.bus.Log)
 	gtunnel.SetStore(readSideFile, writeSideFile)
 	s.mitmdf = mitmdf.NewRunner(s.bus.Log)
@@ -111,6 +117,10 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/subscribe", s.jsonPOST(s.handleSubscribe))
 	mux.HandleFunc("/api/configs/store/save", s.jsonPOST(s.handleConfigsStoreSave))
 	mux.HandleFunc("/api/configs/store/load", s.jsonPOST(s.handleConfigsStoreLoad))
+	mux.HandleFunc("/api/configs/folder/load", s.jsonPOST(s.handleConfigsFolderLoad))
+	mux.HandleFunc("/api/app/version", s.jsonPOST(s.handleAppVersion))
+	mux.HandleFunc("/api/app/update/check", s.jsonPOST(s.handleAppUpdateCheck))
+	mux.HandleFunc("/api/app/update/download", s.jsonPOST(s.handleAppUpdateDownload))
 	mux.HandleFunc("/api/xray/download", s.jsonPOST(s.handleXrayDownload))
 	mux.HandleFunc("/api/xray/start", s.jsonPOST(s.handleXrayStart))
 	mux.HandleFunc("/api/xray/stop", s.jsonPOST(s.handleXrayStop))
@@ -122,6 +132,17 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/singbox/start", s.jsonPOST(s.handleSingboxStart))
 	mux.HandleFunc("/api/singbox/stop", s.jsonPOST(s.handleSingboxStop))
 	mux.HandleFunc("/api/singbox/status", s.jsonPOST(s.handleSingboxStatus))
+	mux.HandleFunc("/api/tun2socks/download", s.jsonPOST(s.handleTun2socksDownload))
+	mux.HandleFunc("/api/tun2socks/start", s.jsonPOST(s.handleTun2socksStart))
+	mux.HandleFunc("/api/tun2socks/stop", s.jsonPOST(s.handleTun2socksStop))
+	mux.HandleFunc("/api/tun2socks/status", s.jsonPOST(s.handleTun2socksStatus))
+	mux.HandleFunc("/api/tor/start", s.jsonPOST(s.handleTorStart))
+	mux.HandleFunc("/api/tor/stop", s.jsonPOST(s.handleTorStop))
+	mux.HandleFunc("/api/tor/status", s.jsonPOST(s.handleTorStatus))
+	mux.HandleFunc("/api/tor/bridges", s.jsonPOST(s.handleTorBridges))
+	mux.HandleFunc("/api/tor/moat/fetch", s.jsonPOST(s.handleTorMoatFetch))
+	mux.HandleFunc("/api/tor/moat/check", s.jsonPOST(s.handleTorMoatCheck))
+	mux.HandleFunc("/api/tor/download", s.jsonPOST(s.handleTorDownload))
 	mux.HandleFunc("/api/gtun/scripts", s.jsonPOST(s.handleGtunScripts))
 	mux.HandleFunc("/api/gtun/start", s.jsonPOST(s.handleGtunStart))
 	mux.HandleFunc("/api/gtun/stop", s.jsonPOST(s.handleGtunStop))
@@ -132,6 +153,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/mitmdf/status", s.jsonPOST(s.handleMitmdfStatus))
 	mux.HandleFunc("/api/mitmdf/defaults", s.jsonPOST(s.handleMitmdfDefaults))
 	mux.HandleFunc("/api/mitmdf/ca", s.handleMitmdfCA)
+	mux.HandleFunc("/api/windivert/download", s.jsonPOST(s.handleWinDivertDownload))
 	mux.HandleFunc("/api/windivert/status", s.jsonPOST(s.handleWinDivertStatus))
 	mux.HandleFunc("/api/windivert/install", s.jsonPOST(s.handleWinDivertInstall))
 	mux.HandleFunc("/api/windivert/uninstall", s.jsonPOST(s.handleWinDivertUninstall))
@@ -141,6 +163,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/psiphon/start", s.jsonPOST(s.handlePsiphonStart))
 	mux.HandleFunc("/api/psiphon/stop", s.jsonPOST(s.handlePsiphonStop))
 	mux.HandleFunc("/api/psiphon/status", s.jsonPOST(s.handlePsiphonStatus))
+	mux.HandleFunc("/api/psiphon/over-mitm", s.jsonPOST(s.handlePsiphonOverMitm))
+	mux.HandleFunc("/api/psiphon/download", s.jsonPOST(s.handlePsiphonDownload))
+	mux.HandleFunc("/api/psiphon/open", s.jsonPOST(s.handlePsiphonOpen))
 	mux.HandleFunc("/api/config/save", s.jsonPOST(s.handleConfigSave))
 	mux.HandleFunc("/api/config/load", s.jsonPOST(s.handleConfigLoad))
 	return mux

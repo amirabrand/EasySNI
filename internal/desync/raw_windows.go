@@ -6,6 +6,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
+	"os"
+	"path/filepath"
 	"sync"
 	"syscall"
 	"unsafe"
@@ -38,8 +40,46 @@ var (
 	wdHandle uintptr // 0 = not open
 )
 
+// wdDLLPath looks for WinDivert.dll next to the app, in a windivert/ subfolder
+// (where the in-app downloader places it), or the working directory.
+func wdDLLPath() string {
+	var cands []string
+	add := func(d string) {
+		if d != "" {
+			cands = append(cands, filepath.Join(d, "WinDivert.dll"), filepath.Join(d, "windivert", "WinDivert.dll"))
+		}
+	}
+	if exe, err := os.Executable(); err == nil {
+		add(filepath.Dir(exe))
+	}
+	if wd, err := os.Getwd(); err == nil {
+		add(wd)
+	}
+	for _, p := range cands {
+		if st, err := os.Stat(p); err == nil && !st.IsDir() {
+			return p
+		}
+	}
+	return ""
+}
+
+// setDllDir adds dir to the DLL search path so WinDivert.dll can load its
+// sibling WinDivert64.sys driver.
+func setDllDir(dir string) {
+	k := syscall.NewLazyDLL("kernel32.dll")
+	p := k.NewProc("SetDllDirectoryW")
+	if u, err := syscall.UTF16PtrFromString(dir); err == nil {
+		p.Call(uintptr(unsafe.Pointer(u)))
+	}
+}
+
 func wdLoad() {
-	wdDLL = syscall.NewLazyDLL("WinDivert.dll")
+	if path := wdDLLPath(); path != "" {
+		setDllDir(filepath.Dir(path))
+		wdDLL = syscall.NewLazyDLL(path)
+	} else {
+		wdDLL = syscall.NewLazyDLL("WinDivert.dll")
+	}
 	wdOpen = wdDLL.NewProc("WinDivertOpen")
 	wdSend = wdDLL.NewProc("WinDivertSend")
 	iphlp = syscall.NewLazyDLL("iphlpapi.dll")
@@ -51,7 +91,7 @@ const invalidHandle = ^uintptr(0)
 func wdEnsureHandle() error {
 	wdOnce.Do(wdLoad)
 	if err := wdDLL.Load(); err != nil {
-		return fmt.Errorf("WinDivert.dll not found — place it next to the app: %v", err)
+		return fmt.Errorf("WinDivert.dll not found — download it from the WinDivert tab or place it next to the app / in the windivert folder: %v", err)
 	}
 	wdMu.Lock()
 	defer wdMu.Unlock()

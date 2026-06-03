@@ -56,16 +56,17 @@ func FindXray() string {
 		names = []string{"xray.exe", "v2ray.exe"}
 	}
 
-	// 1) Next to this executable (e.g. xray.exe beside project.exe), then cwd.
+	// 1) Next to this executable (e.g. xray.exe beside project.exe), the
+	// xray-core/ subfolder we extract into, then cwd.
 	var localDirs []string
 	if exe, err := os.Executable(); err == nil {
 		if rp, err := filepath.EvalSymlinks(exe); err == nil {
 			exe = rp
 		}
-		localDirs = append(localDirs, filepath.Dir(exe))
+		localDirs = append(localDirs, filepath.Dir(exe), filepath.Join(filepath.Dir(exe), "xray-core"))
 	}
 	if cwd, err := os.Getwd(); err == nil {
-		localDirs = append(localDirs, cwd)
+		localDirs = append(localDirs, cwd, filepath.Join(cwd, "xray-core"))
 	}
 	for _, d := range localDirs {
 		for _, n := range names {
@@ -158,13 +159,18 @@ func buildConfig(p sni.ParsedURI, outHost string, outPort int, listenHost string
 	if p.TLS {
 		security = "tls"
 	}
+	tlsSettings := map[string]any{
+		"serverName": p.SNI,
+	}
+	if p.AllowInsecure {
+		// Only emit when explicitly enabled. Newer xray cores have removed the
+		// field, so the default (false) must omit it entirely.
+		tlsSettings["allowInsecure"] = true
+	}
 	stream := map[string]any{
-		"network":  p.Type,
-		"security": security,
-		"tlsSettings": map[string]any{
-			"serverName":    p.SNI,
-			"allowInsecure": true,
-		},
+		"network":     p.Type,
+		"security":    security,
+		"tlsSettings": tlsSettings,
 	}
 	if p.Type == "ws" {
 		stream["wsSettings"] = map[string]any{

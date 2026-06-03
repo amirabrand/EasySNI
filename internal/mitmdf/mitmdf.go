@@ -58,9 +58,10 @@ type Config struct {
 	// DoH resolver (fronted) — used so real hosts aren't resolved via the
 	// censor's poisoned DNS. Defaults to Cloudflare 1.1.1.1 fronted by an
 	// allowed SNI, mirroring the reference config's tls-repack-dns.
-	DoHIP   string `json:"doh_ip"`   // IP literal to dial (no DNS needed), e.g. 1.1.1.1
-	DoHSNI  string `json:"doh_sni"`  // SNI to present for the DoH connection
+	DoHIP   string `json:"doh_ip"`   // IP literal to dial (no DNS needed), e.g. 1.1.1.1; blank = resolve DoHHost via OS DNS
+	DoHSNI  string `json:"doh_sni"`  // SNI to present for the DoH connection (blank = use DoHHost)
 	DoHHost string `json:"doh_host"` // HTTP Host / DoH server name, e.g. cloudflare-dns.com
+	DoHPath string `json:"doh_path"` // DoH query path, e.g. /dns-query
 }
 
 // DefaultRules is a starting, fully-editable mapping of common CDN-hosted
@@ -92,6 +93,12 @@ func DefaultRules() []Rule {
 		mr("instagram.com"), mr("cdninstagram.com"),
 		mr("whatsapp.com"), mr("whatsapp.net"), mr("messenger.com"),
 		mr("meta.com"), mr("oculus.com"), mr("internet.org"), mr("wit.ai"),
+		// --- Akamai CDN → www.microsoft.com (Microsoft is Akamai-hosted; SNI swap on real IP) ---
+		mr("akamai.net"), mr("akamaiedge.net"), mr("akamaihd.net"),
+		mr("akamaized.net"), mr("edgesuite.net"), mr("edgekey.net"),
+		// --- Tor Project (Fastly) → front so moat/bridges work when blocked ---
+		{Match: "torproject.org", Front: "github.githubassets.com", Dial: "github.githubassets.com"},
+		{Match: "bridges.torproject.org", Front: "github.githubassets.com", Dial: "github.githubassets.com"},
 	}
 }
 
@@ -161,11 +168,18 @@ func SetStore(load func(string) ([]byte, error), save func(string, []byte) error
 
 func (r *Runner) buildDoHClient() *http.Client {
 	ip, sni, host := r.cfg.DoHIP, r.cfg.DoHSNI, r.cfg.DoHHost
+	if sni == "" {
+		sni = host // present the DoH host's real name when no front is given
+	}
 	tr := &http.Transport{
 		ForceAttemptHTTP2: true,
 		DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 			d := net.Dialer{Timeout: 12 * time.Second}
-			raw, err := d.DialContext(ctx, "tcp", net.JoinHostPort(ip, "443")) // IP literal: no DNS
+			dialTarget := ip
+			if dialTarget == "" {
+				dialTarget = host // no IP given: resolve the DoH host via the OS
+			}
+			raw, err := d.DialContext(ctx, "tcp", net.JoinHostPort(dialTarget, "443"))
 			if err != nil {
 				return nil, err
 			}
@@ -178,7 +192,6 @@ func (r *Runner) buildDoHClient() *http.Client {
 		},
 		TLSHandshakeTimeout: 12 * time.Second,
 	}
-	_ = host
 	return &http.Client{Transport: tr, Timeout: 15 * time.Second}
 }
 
@@ -195,7 +208,15 @@ func (r *Runner) resolve(ctx context.Context, host string) (string, error) {
 	}
 	r.dnsMu.Unlock()
 
-	url := "https://" + r.cfg.DoHHost + "/dns-query?type=A&name=" + host
+	path := r.cfg.DoHPath
+	if path == "" {
+		path = "/dns-query"
+	}
+	sep := "?"
+	if strings.Contains(path, "?") {
+		sep = "&"
+	}
+	url := "https://" + r.cfg.DoHHost + path + sep + "type=A&name=" + host
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	req.Host = r.cfg.DoHHost
 	req.Header.Set("Accept", "application/dns-json")

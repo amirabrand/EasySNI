@@ -19,6 +19,15 @@ import (
 var portRe = regexp.MustCompile(`\d+`)
 
 // SafePort extracts a valid TCP port from raw, falling back to def.
+// truthy reports whether a query/JSON value means "on" (1/true/yes).
+func truthy(s string) bool {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "1", "true", "yes", "on":
+		return true
+	}
+	return false
+}
+
 func SafePort(raw string, def int) int {
 	m := portRe.FindString(raw)
 	if m == "" {
@@ -33,19 +42,20 @@ func SafePort(raw string, def int) int {
 
 // ParsedURI is the decoded form of a vless:// or vmess:// link.
 type ParsedURI struct {
-	Raw      string `json:"raw"`
-	Protocol string `json:"protocol"`
-	Host     string `json:"host"`
-	Port     int    `json:"port"`
-	UUID     string `json:"uuid"`
-	Password string `json:"password"` // trojan / shadowsocks
-	Method   string `json:"method"`   // shadowsocks cipher
-	SNI      string `json:"sni"`
-	Type     string `json:"type"`
-	Path     string `json:"path"`
-	TLS      bool   `json:"tls"`
-	Valid    bool   `json:"valid"`
-	Error    string `json:"error"`
+	Raw           string `json:"raw"`
+	Protocol      string `json:"protocol"`
+	Host          string `json:"host"`
+	Port          int    `json:"port"`
+	UUID          string `json:"uuid"`
+	Password      string `json:"password"` // trojan / shadowsocks
+	Method        string `json:"method"`   // shadowsocks cipher
+	SNI           string `json:"sni"`
+	Type          string `json:"type"`
+	Path          string `json:"path"`
+	TLS           bool   `json:"tls"`
+	AllowInsecure bool   `json:"allow_insecure"`
+	Valid         bool   `json:"valid"`
+	Error         string `json:"error"`
 }
 
 // ParseURI parses a vless:// or vmess:// share link. Mirrors parse_v2ray_uri.
@@ -92,6 +102,7 @@ func ParseURI(uri string) ParsedURI {
 		r.Type = typ
 		r.Path = path
 		r.TLS = security == "tls" || security == "reality" || security == "xtls"
+		r.AllowInsecure = truthy(qs.Get("allowInsecure")) || truthy(qs.Get("allowinsecure"))
 		r.Valid = true
 
 	case strings.HasPrefix(uri, "vmess://"):
@@ -113,6 +124,8 @@ func ParseURI(uri string) ParsedURI {
 			Net  string      `json:"net"`
 			Path string      `json:"path"`
 			TLS  string      `json:"tls"`
+			AI   interface{} `json:"allowInsecure"`
+			Vfy  interface{} `json:"verify_cert"`
 		}
 		if err := json.Unmarshal(decoded, &d); err != nil {
 			r.Error = err.Error()
@@ -137,6 +150,7 @@ func ParseURI(uri string) ParsedURI {
 		r.Type = typ
 		r.Path = d.Path
 		r.TLS = strings.ToLower(d.TLS) == "tls"
+		r.AllowInsecure = truthy(fmt.Sprintf("%v", d.AI)) || (d.Vfy != nil && !truthy(fmt.Sprintf("%v", d.Vfy)))
 		r.Valid = true
 
 	case strings.HasPrefix(uri, "trojan://"):
@@ -174,6 +188,7 @@ func ParseURI(uri string) ParsedURI {
 		r.Type = typ
 		r.Path = path
 		r.TLS = qs.Get("security") != "none" // trojan defaults to TLS
+		r.AllowInsecure = truthy(qs.Get("allowInsecure")) || truthy(qs.Get("allowinsecure"))
 		r.Valid = host != "" && pw != ""
 		if !r.Valid && r.Error == "" {
 			r.Error = "trojan: missing host or password"

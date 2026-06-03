@@ -4,11 +4,10 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
+	"ezsni/internal/ghdl"
 	"io"
 	"net"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -413,39 +412,14 @@ func Download(destDir string, log LogFunc) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	log("Querying latest Xray-core release…", "ACCENT")
-	rel, err := http.Get("https://api.github.com/repos/XTLS/Xray-core/releases/latest")
+	log("Resolving latest Xray-core release…", "ACCENT")
+	tag, err := ghdl.LatestTag("XTLS/Xray-core")
 	if err != nil {
 		return "", err
 	}
-	defer rel.Body.Close()
-	var meta struct {
-		Tag    string `json:"tag_name"`
-		Assets []struct {
-			Name string `json:"name"`
-			URL  string `json:"browser_download_url"`
-		} `json:"assets"`
-	}
-	if err := json.NewDecoder(rel.Body).Decode(&meta); err != nil {
-		return "", err
-	}
-	var url string
-	for _, a := range meta.Assets {
-		if a.Name == want {
-			url = a.URL
-			break
-		}
-	}
-	if url == "" {
-		return "", errors.New("no asset " + want + " in release " + meta.Tag)
-	}
-	log("Downloading "+want+" ("+meta.Tag+")…", "ACCENT")
-	dl, err := http.Get(url)
-	if err != nil {
-		return "", err
-	}
-	defer dl.Body.Close()
-	data, err := io.ReadAll(dl.Body)
+	url := ghdl.AssetURL("XTLS/Xray-core", tag, want)
+	log("Downloading "+want+" ("+tag+")…", "ACCENT")
+	data, err := ghdl.Download(url)
 	if err != nil {
 		return "", err
 	}
@@ -457,27 +431,43 @@ func Download(destDir string, log LogFunc) (string, error) {
 	if runtime.GOOS == "windows" {
 		binName = "xray.exe"
 	}
+	// Extract the WHOLE archive (xray + geoip.dat + geosite.dat + wintun.dll on
+	// Windows) into a dedicated xray-core/ folder so TUN mode and routing data
+	// files are all present together.
+	coreDir := filepath.Join(destDir, "xray-core")
+	if err := os.MkdirAll(coreDir, 0o755); err != nil {
+		return "", err
+	}
+	binPath := ""
 	for _, f := range zr.File {
-		if filepath.Base(f.Name) != binName {
+		name := filepath.Base(f.Name)
+		if name == "" || f.FileInfo().IsDir() {
 			continue
 		}
 		rc, err := f.Open()
 		if err != nil {
 			return "", err
 		}
-		defer rc.Close()
-		dest := filepath.Join(destDir, binName)
-		out, err := os.OpenFile(dest, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o755)
+		outPath := filepath.Join(coreDir, name)
+		out, err := os.OpenFile(outPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o755)
 		if err != nil {
+			rc.Close()
 			return "", err
 		}
 		if _, err := io.Copy(out, rc); err != nil {
 			out.Close()
+			rc.Close()
 			return "", err
 		}
 		out.Close()
-		log("✓ Xray installed at "+dest, "OK")
-		return dest, nil
+		rc.Close()
+		if name == binName {
+			binPath = outPath
+		}
 	}
-	return "", errors.New(binName + " not found inside the release archive")
+	if binPath == "" {
+		return "", errors.New(binName + " not found inside the release archive")
+	}
+	log("✓ Xray-core extracted to "+coreDir+" (binary, geoip/geosite, wintun.dll)", "OK")
+	return binPath, nil
 }
