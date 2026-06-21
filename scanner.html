@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>اسکنر IP تمیز</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#06100d; --bg2:#0a1814; --card:#0e201a; --card2:#12281f; --border:#1c3a30;
+  --text:#e8fff6; --muted:#7fae9e; --dim:#4f7c6c;
+  --teal:#00e5a0; --teal2:#10b981; --cyan:#22d3ee; --amber:#fbbf24; --red:#f87171;
+  --grad:linear-gradient(135deg,#00e5a0,#06b6d4);
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{font-family:'Vazirmatn',system-ui,sans-serif;color:var(--text);font-size:14px;
+  background:radial-gradient(900px 500px at 50% -10%, rgba(0,229,160,.12), transparent 60%), var(--bg);
+  padding:14px 14px calc(120px + env(safe-area-inset-bottom));-webkit-font-smoothing:antialiased}
+.muted{color:var(--muted)}.dim{color:var(--dim)}
+button{font-family:inherit;cursor:pointer}
+
+.head{display:flex;align-items:center;gap:11px;margin-bottom:16px}
+.logo{width:44px;height:44px;border-radius:14px;background:var(--grad);display:grid;place-items:center;
+  box-shadow:0 10px 26px -8px rgba(0,229,160,.7)}
+.logo svg{width:24px;height:24px;color:#04130d}
+.head h1{font-size:18px;margin:0;font-weight:800}
+.head p{margin:0;font-size:12px;color:var(--dim)}
+
+.steps{display:flex;gap:6px;margin-bottom:16px}
+.steps .s{flex:1;height:4px;border-radius:4px;background:var(--card2)}
+.steps .s.on{background:var(--grad)}
+
+.card{background:linear-gradient(180deg,var(--card),var(--bg2));border:1px solid var(--border);
+  border-radius:18px;padding:16px;margin-bottom:14px}
+.card h3{margin:0 0 12px;font-size:15px;font-weight:800;display:flex;align-items:center;gap:8px}
+.row{display:flex;gap:10px}
+.field{flex:1}
+.field label{display:block;font-size:12px;color:var(--muted);font-weight:700;margin-bottom:6px}
+.field input,.field select{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:12px;
+  padding:12px 13px;color:var(--text);font-family:inherit;font-size:14px}
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:6px}
+.chip{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:7px 12px;font-size:12.5px;font-weight:700;color:var(--muted)}
+.chip.on{background:var(--grad);color:#04130d;border-color:transparent}
+
+.btn{border:0;border-radius:14px;padding:15px;font-weight:800;font-size:15px;width:100%;color:#04130d;background:var(--grad);
+  box-shadow:0 14px 30px -12px rgba(0,229,160,.8);display:flex;align-items:center;justify-content:center;gap:9px}
+.btn.sec{background:var(--card2);color:var(--text);border:1px solid var(--border);box-shadow:none}
+.btn:disabled{opacity:.55}
+.btn.sm{padding:11px;font-size:13px;border-radius:12px}
+
+.progress{height:10px;border-radius:10px;background:var(--card2);overflow:hidden;margin:14px 0 8px}
+.progress>i{display:block;height:100%;background:var(--grad);width:0;transition:width .25s}
+.statline{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);font-weight:700}
+
+.result{display:flex;align-items:center;gap:12px;padding:12px;border-radius:13px;background:var(--card2);border:1px solid var(--border);margin-bottom:9px}
+.result .rank{width:30px;height:30px;border-radius:9px;background:var(--bg);display:grid;place-items:center;font-weight:800;color:var(--teal);flex:none;font-size:13px}
+.result .ip{font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.2px}
+.result .ms{margin-inline-start:auto;font-weight:800;font-size:14px}
+.ms.good{color:var(--teal)}.ms.mid{color:var(--amber)}.ms.bad{color:var(--red)}
+.result .copybtn{width:34px;height:34px;border-radius:9px;background:var(--bg);border:1px solid var(--border);display:grid;place-items:center;color:var(--muted);flex:none}
+
+textarea{width:100%;min-height:120px;background:var(--bg);border:1px solid var(--border);border-radius:12px;
+  padding:12px;color:var(--text);font-family:ui-monospace,Menlo,monospace;font-size:12px;resize:vertical;direction:ltr}
+.note{font-size:11.5px;color:var(--dim);margin-top:8px;line-height:1.7}
+
+.bottombar{position:fixed;inset-inline:0;bottom:0;padding:12px 14px calc(12px + env(safe-area-inset-bottom));
+  background:linear-gradient(0deg,var(--bg) 70%,transparent);display:flex;gap:10px}
+.hide{display:none!important}
+.toast{position:fixed;inset-inline:0;bottom:96px;margin:auto;width:max-content;max-width:90vw;background:var(--card2);
+  border:1px solid var(--border);border-radius:12px;padding:11px 18px;font-weight:700;z-index:60;opacity:0;transform:translateY(8px);transition:.25s}
+.toast.show{opacity:1;transform:none}
+.empty{text-align:center;color:var(--dim);padding:30px 10px;font-weight:600}
+.spin{width:16px;height:16px;border:2px solid rgba(4,19,13,.3);border-top-color:#04130d;border-radius:50%;animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.spin{animation:none}}
+</style>
+</head>
+<body>
+
+<div class="head">
+  <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h4l3 8 4-16 3 8h4"/></svg></div>
+  <div><h1>اسکنر IP تمیز</h1><p>پیدا کردن بهترین IP کلودفلر برای کانفیگ‌ها</p></div>
+</div>
+
+<div class="steps"><div class="s on" id="st1"></div><div class="s" id="st2"></div><div class="s" id="st3"></div></div>
+
+<section id="step1">
+  <div class="card">
+    <h3>⚙️ تنظیمات اسکن</h3>
+    <div class="row">
+      <div class="field"><label>پورت</label>
+        <select id="port"><option>443</option><option>2053</option><option>2083</option><option>2087</option><option>2096</option><option>8443</option></select>
+      </div>
+      <div class="field"><label>تعداد IP برای تست</label>
+        <select id="count"><option value="40">۴۰</option><option value="80" selected>۸۰</option><option value="150">۱۵۰</option><option value="300">۳۰۰</option></select>
+      </div>
+    </div>
+    <div style="margin-top:12px"><label class="muted" style="font-size:12px;font-weight:700">حداکثر تأخیر قابل‌قبول</label>
+      <div class="chips" id="maxms">
+        <span class="chip" data-v="200">۲۰۰ms</span>
+        <span class="chip on" data-v="400">۴۰۰ms</span>
+        <span class="chip" data-v="800">۸۰۰ms</span>
+        <span class="chip" data-v="3000">همه</span>
+      </div>
+    </div>
+    <p class="note">اسکن کاملاً داخل همین اپ و روی شبکه‌ی شما انجام می‌شه — هیچ سروری در کار نیست. نتایج به اتصال فعلی شما بستگی داره.</p>
+  </div>
+  <div class="card">
+    <h3>📊 وضعیت</h3>
+    <div class="progress"><i id="bar"></i></div>
+    <div class="statline"><span id="scanState">آماده برای اسکن</span><span id="scanCount">۰ / ۰</span></div>
+    <div class="statline" style="margin-top:6px"><span class="dim">سالم پیدا شده</span><span id="foundCount" style="color:var(--teal)">۰</span></div>
+  </div>
+</section>
+
+<section id="step2" class="hide">
+  <div class="card">
+    <h3>✅ بهترین IPها <span id="resCount" class="muted" style="font-weight:600;font-size:12px"></span></h3>
+    <div id="results"></div>
+  </div>
+</section>
+
+<section id="step3" class="hide">
+  <div class="card">
+    <h3>🛠 ساخت کانفیگ با IP تمیز</h3>
+    <label class="muted" style="font-size:12px;font-weight:700">کانفیگ‌هات رو بذار (هر کدوم یک خط: vless/vmess/trojan/ss)</label>
+    <textarea id="cfgIn" placeholder="vless://...&#10;vmess://...&#10;trojan://..."></textarea>
+    <div class="row" style="margin-top:10px">
+      <button class="btn sm sec" id="useBest">استفاده از بهترین IP</button>
+      <button class="btn sm" id="buildBtn">ساخت کانفیگ‌ها</button>
+    </div>
+  </div>
+  <div class="card" id="outCard" style="display:none">
+    <h3>📤 خروجی</h3>
+    <textarea id="cfgOut" readonly></textarea>
+    <div class="row" style="margin-top:10px">
+      <button class="btn sm sec" id="copyClean">کپی بدون پینگ</button>
+      <button class="btn sm" id="copyPing">کپی با پینگ</button>
+    </div>
+  </div>
+</section>
+
+<div class="bottombar" id="bar1">
+  <button class="btn" id="scanBtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#04130d" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg> شروع اسکن</button>
+</div>
+<div class="bottombar hide" id="bar2">
+  <button class="btn sec" id="rescan">اسکن دوباره</button>
+  <button class="btn" id="toOpt">ساخت کانفیگ ←</button>
+</div>
+<div class="bottombar hide" id="bar3">
+  <button class="btn sec" id="backRes">← نتایج</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const tg = window.Telegram && window.Telegram.WebApp;
+if(tg){ try{ tg.ready(); tg.expand(); }catch(e){} }
+
+const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
+const fa=n=>String(n).replace(/[0-9]/g,d=>"۰۱۲۳۴۵۶۷۸۹"[d]);
+let toastT; function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("show"),2000);if(tg&&tg.HapticFeedback)try{tg.HapticFeedback.impactOccurred('light')}catch(e){}}
+
+const CF_FALLBACK=["173.245.48.0/20","103.21.244.0/22","103.22.200.0/22","103.31.4.0/22","141.101.64.0/18","108.162.192.0/18","190.93.240.0/20","188.114.96.0/20","197.234.240.0/22","198.41.128.0/17","162.158.0.0/15","104.16.0.0/13","104.24.0.0/14","172.64.0.0/13","131.0.72.0/22"];
+async function getRanges(){
+  try{
+    const r=await fetch("https://www.cloudflare.com/ips-v4",{cache:"no-store"});
+    const t=await r.text(); const list=t.split("\n").map(s=>s.trim()).filter(s=>/^\d+\.\d+\.\d+\.\d+\/\d+$/.test(s));
+    return list.length?list:CF_FALLBACK;
+  }catch(e){ return CF_FALLBACK; }
+}
+const ipToInt=ip=>ip.split(".").reduce((a,o)=>(a<<8>>>0)+(+o),0)>>>0;
+const intToIp=n=>[24,16,8,0].map(s=>(n>>>s)&255).join(".");
+function randomIPs(ranges,n){
+  const out=new Set(); let guard=0;
+  while(out.size<n && guard++<n*40){
+    const cidr=ranges[Math.floor(Math.random()*ranges.length)];
+    const [base,bits]=cidr.split("/"); const size=2**(32-(+bits));
+    const ip=intToIp((ipToInt(base)+Math.floor(Math.random()*size))>>>0);
+    if(!ip.endsWith(".0")&&!ip.endsWith(".255")) out.add(ip);
+  }
+  return [...out];
+}
+
+function pingIP(ip,port,timeout=2200){
+  return new Promise(resolve=>{
+    const ctrl=new AbortController(); const t0=performance.now();
+    const to=setTimeout(()=>ctrl.abort(),timeout);
+    fetch(`https://${ip}:${port}/cdn-cgi/trace`,{mode:"no-cors",cache:"no-store",signal:ctrl.signal})
+      .then(()=>{clearTimeout(to);resolve(Math.round(performance.now()-t0));})
+      .catch(err=>{clearTimeout(to); if(err.name==="AbortError") resolve(null); else resolve(Math.round(performance.now()-t0));});
+  });
+}
+async function pool(items,worker,concurrency,onTick){
+  let i=0,done=0; const res=[];
+  async function run(){ while(i<items.length){ const idx=i++; res[idx]=await worker(items[idx]); onTick(++done); } }
+  await Promise.all(Array.from({length:Math.min(concurrency,items.length)},run));
+  return res;
+}
+
+let FOUND=[], MAXMS=400, scanning=false;
+$("#maxms").addEventListener("click",e=>{const c=e.target.closest(".chip");if(!c)return;$$("#maxms .chip").forEach(x=>x.classList.remove("on"));c.classList.add("on");MAXMS=+c.dataset.v;});
+
+function setStep(n){
+  [1,2,3].forEach(i=>{$("#step"+i).classList.toggle("hide",i!==n);$("#bar"+i).classList.toggle("hide",i!==n);$("#st"+i).classList.toggle("on",i<=n);});
+  if(tg){ try{ if(n>1){tg.BackButton.show();}else{tg.BackButton.hide();} }catch(e){} }
+  window.scrollTo(0,0);
+}
+
+async function startScan(){
+  if(scanning) return; scanning=true; FOUND=[];
+  const port=$("#port").value, count=+$("#count").value;
+  $("#scanBtn").disabled=true; $("#scanBtn").innerHTML='<span class="spin"></span> در حال اسکن…';
+  $("#scanState").textContent="در حال آماده‌سازی…"; $("#bar").style.width="0%";
+  const ranges=await getRanges();
+  const ips=randomIPs(ranges,count);
+  $("#scanState").textContent="در حال تست IPها…";
+  await pool(ips,async ip=>{
+    const ms=await pingIP(ip,port,2200);
+    if(ms!=null && ms<=MAXMS) FOUND.push({ip,ms});
+    return ms;
+  },24,(done)=>{
+    $("#bar").style.width=(done/ips.length*100)+"%";
+    $("#scanCount").textContent=fa(done)+" / "+fa(ips.length);
+    $("#foundCount").textContent=fa(FOUND.length);
+  });
+  FOUND.sort((a,b)=>a.ms-b.ms);
+  scanning=false; $("#scanBtn").disabled=false;
+  $("#scanBtn").innerHTML='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#04130d" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg> شروع اسکن';
+  $("#scanState").textContent="اسکن کامل شد";
+  renderResults();
+  if(FOUND.length) setStep(2); else toast("IP سالمی پیدا نشد — حد تأخیر رو بیشتر کن یا دوباره بزن");
+}
+function msClass(ms){return ms<=200?"good":ms<=500?"mid":"bad";}
+function renderResults(){
+  $("#resCount").textContent="("+fa(FOUND.length)+" مورد)";
+  const top=FOUND.slice(0,40);
+  $("#results").innerHTML = top.length? top.map((r,i)=>`
+    <div class="result">
+      <span class="rank">${fa(i+1)}</span>
+      <span class="ip" dir="ltr">${r.ip}</span>
+      <span class="ms ${msClass(r.ms)}">${fa(r.ms)}ms</span>
+      <button class="copybtn" data-ip="${r.ip}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button>
+    </div>`).join("") : `<div class="empty">چیزی پیدا نشد.</div>`;
+}
+$("#results").addEventListener("click",e=>{const b=e.target.closest("[data-ip]");if(!b)return;copy(b.dataset.ip);toast("کپی شد: "+b.dataset.ip);});
+
+function replaceHost(link,addr,port){
+  link=link.trim();
+  if(/^(vless|trojan):\/\//.test(link)){
+    return link.replace(/^((?:vless|trojan):\/\/[^@]+@)([^:\/?#]+)(?::(\d+))?/,(m,p,h,pt)=>`${p}${addr}:${port||pt||443}`);
+  }
+  if(link.startsWith("vmess://")){
+    try{const o=JSON.parse(atob(link.slice(8).replace(/-/g,'+').replace(/_/g,'/')+"=="));o.add=addr;if(port)o.port=String(port);return "vmess://"+btoa(JSON.stringify(o));}catch(e){return null;}
+  }
+  if(link.startsWith("ss://")){
+    const m=link.match(/^(ss:\/\/[^@]+@)([^:\/?#]+)(?::(\d+))?(.*)$/);
+    if(m) return `${m[1]}${addr}:${port||m[3]||443}${m[4]}`;
+  }
+  return null;
+}
+function tagPing(link,ms){
+  if(link.startsWith("vmess://")){try{const o=JSON.parse(atob(link.slice(8)+"=="));o.ps=(o.ps||"node")+` (${ms}ms)`;return "vmess://"+btoa(JSON.stringify(o));}catch(e){return link;}}
+  return link.includes("#")? link+encodeURIComponent(` (${ms}ms)`) : link+"#"+encodeURIComponent(`clean (${ms}ms)`);
+}
+let OUT_CLEAN=[], OUT_PING=[];
+function build(){
+  const lines=$("#cfgIn").value.split("\n").map(s=>s.trim()).filter(Boolean);
+  if(!lines.length){toast("اول کانفیگ بذار");return;}
+  if(!FOUND.length){toast("اول اسکن کن");return;}
+  const port=$("#port").value, ips=FOUND.slice(0,10);
+  OUT_CLEAN=[];OUT_PING=[];
+  for(const ln of lines){ for(const r of ips){ const nl=replaceHost(ln,r.ip,port); if(nl){OUT_CLEAN.push(nl);OUT_PING.push(tagPing(nl,r.ms));} } }
+  if(!OUT_CLEAN.length){toast("کانفیگ معتبری نبود");return;}
+  $("#outCard").style.display="block";
+  $("#cfgOut").value=OUT_PING.join("\n");
+  toast(fa(OUT_CLEAN.length)+" کانفیگ ساخته شد");
+}
+function copy(t){ if(navigator.clipboard) navigator.clipboard.writeText(t).catch(()=>{}); else {const a=document.createElement("textarea");a.value=t;document.body.appendChild(a);a.select();document.execCommand("copy");a.remove();} }
+
+$("#scanBtn").onclick=startScan;
+$("#rescan").onclick=()=>setStep(1);
+$("#toOpt").onclick=()=>setStep(3);
+$("#backRes").onclick=()=>setStep(2);
+$("#useBest").onclick=()=>{ if(FOUND[0]) toast("بهترین IP: "+FOUND[0].ip); };
+$("#buildBtn").onclick=build;
+$("#copyClean").onclick=()=>{copy(OUT_CLEAN.join("\n"));toast("کپی شد (بدون پینگ)");};
+$("#copyPing").onclick=()=>{copy(OUT_PING.join("\n"));toast("کپی شد (با پینگ)");};
+if(tg){ try{ tg.BackButton.onClick(()=>{ const cur=$("#step3").classList.contains("hide")?($("#step2").classList.contains("hide")?1:2):3; setStep(Math.max(1,cur-1)); }); }catch(e){} }
+setStep(1);
+</script>
+</body>
+</html>
